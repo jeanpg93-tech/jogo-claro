@@ -218,7 +218,8 @@ function GameDetail({ game }: { game: Game }) {
                   </tbody>
                 </table>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Não exibimos links para casas de apostas.
+                  <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">BR</span>{" "}
+                  = casas que operam no Brasil. Não exibimos links para casas de apostas.
                 </p>
               </div>
             )}
