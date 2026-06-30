@@ -81,6 +81,19 @@ export async function runSync(): Promise<MultiSyncResult> {
     tasks.push({ name: "oddspapi", provider, activeLabels: [] });
   }
 
+  // Remove jogos de provedores DESATIVADOS (estavam em uso antes do toggle).
+  const ALL_PROVIDERS: ProviderName[] = ["the-odds-api", "oddspapi"];
+  for (const p of ALL_PROVIDERS) {
+    if (enabled[p]) continue;
+    const { data: rows } = await admin.from("games").select("id").eq("provider", p);
+    const ids = (rows ?? []).map((r) => r.id as string);
+    if (ids.length === 0) continue;
+    await admin.from("game_odds").delete().in("game_id", ids);
+    await admin.from("game_reference").delete().in("game_id", ids);
+    await admin.from("games").delete().in("id", ids);
+    console.log(`[runSync] provider desativado "${p}": ${ids.length} jogos removidos.`);
+  }
+
   const results: SyncResult[] = [];
   for (const t of tasks) {
     results.push(await runOneProvider(admin, t.name, t.provider, t.activeLabels));

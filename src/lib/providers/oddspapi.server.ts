@@ -77,12 +77,28 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         `${HOST}/v4/tournaments?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
       );
       if (!tournRes.ok) {
-        console.error(`[oddspapi] tournaments -> ${tournRes.status}`);
+        const body = await tournRes.text().catch(() => "");
+        console.error(`[oddspapi] tournaments -> ${tournRes.status} ${body.slice(0, 300)}`);
         return [];
       }
       const allTourns = (await tournRes.json()) as TournamentRow[];
+      console.log(
+        `[oddspapi] torneios retornados: ${allTourns.length}; slugs solicitados: ${tournamentSlugs.join(",")}`,
+      );
       const selected = allTourns.filter((t) => tournamentSlugs.includes(t.tournamentSlug));
-      if (selected.length === 0) return [];
+      if (selected.length === 0) {
+        const sample = allTourns
+          .slice(0, 40)
+          .map((t) => `${t.tournamentSlug} (${t.tournamentName})`)
+          .join(" | ");
+        console.error(
+          `[oddspapi] Nenhum torneio bateu. Amostra de slugs disponíveis: ${sample}`,
+        );
+        return [];
+      }
+      console.log(
+        `[oddspapi] torneios casados: ${selected.map((t) => t.tournamentSlug).join(",")}`,
+      );
       const slugById = new Map(selected.map((t) => [t.tournamentId, t.tournamentSlug]));
       const nameById = new Map(selected.map((t) => [t.tournamentId, t.tournamentName]));
       const ids = selected.map((t) => t.tournamentId).join(",");
