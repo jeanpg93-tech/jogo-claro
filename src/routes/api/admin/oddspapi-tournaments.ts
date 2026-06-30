@@ -56,6 +56,7 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
           n.setUTCDate(n.getUTCDate() + days);
           return n;
         };
+        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         let cursor = addDays(today, -1);
         const until = addDays(today, 35);
         while (cursor.getTime() < until.getTime()) {
@@ -88,6 +89,7 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
             }
           }
           cursor = to;
+          if (cursor.getTime() < until.getTime()) await wait(2_100);
         }
 
         if (discovered.size > 0) {
