@@ -113,6 +113,7 @@ interface SyncRun {
 function AdminSyncPage() {
   const { effectiveIsAdmin } = useRole();
   const [runs, setRuns] = useState<SyncRun[] | null>(null);
+  const [showAllRuns, setShowAllRuns] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
