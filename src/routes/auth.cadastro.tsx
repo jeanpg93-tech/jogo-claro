@@ -160,7 +160,13 @@ function CadastroPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Criando conta..." : "Criar conta"}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Criando conta…
+              </span>
+            ) : (
+              "Criar conta"
+            )}
           </Button>
         </form>
 
