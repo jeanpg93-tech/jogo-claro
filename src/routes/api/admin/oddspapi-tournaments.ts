@@ -22,9 +22,11 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
           );
         }
         const { ODDSPAPI_HEADERS } = await import("@/lib/providers/oddspapi.server");
+        // A chave atual da OddsPapi responde na API v4. Mantemos v5 apenas como
+        // fallback futuro, porque para esta chave ela retorna invalid_api_key.
         const urls = [
-          new URL("https://v5.oddspapi.io/en/tournaments"),
           new URL("https://api.oddspapi.io/v4/tournaments"),
+          new URL("https://v5.oddspapi.io/en/tournaments"),
         ];
         let lastStatus = 0;
         let lastText = "";
