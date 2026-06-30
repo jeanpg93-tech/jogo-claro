@@ -149,6 +149,11 @@ function AdminSyncPage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(body.error ?? `Falha na sincronização (${res.status}).`);
+      } else if (body.ok === false) {
+        const firstError = Array.isArray(body.results)
+          ? body.results.find((r: { error?: string }) => r.error)?.error
+          : undefined;
+        toast.error(firstError ?? body.error ?? "Sincronização concluída com erro no provedor.");
       } else {
         toast.success(
           `Sincronização concluída: ${body.gamesInserted ?? 0} novos, ${body.gamesUpdated ?? 0} atualizados.`,

@@ -35,6 +35,12 @@ interface ParticipantRow {
   participantName: string;
 }
 
+type ParticipantPayload =
+  | ParticipantRow[]
+  | { data?: ParticipantRow[]; participants?: ParticipantRow[]; result?: ParticipantRow[] }
+  | Record<string, unknown>
+  | null;
+
 interface OddsFixtureRow {
   fixtureId: string;
   participant1Id: number;
@@ -96,6 +102,15 @@ function normalizeSlugs(values: string[], aliases: Record<string, string>): stri
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function asParticipantRows(payload: ParticipantPayload): ParticipantRow[] {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.participants)) return payload.participants;
+  if (Array.isArray(payload.result)) return payload.result;
+  return [];
 }
 
 async function fetchOddsWithRetry(url: string): Promise<Response> {
@@ -241,7 +256,8 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         `${HOST}/v4/participants?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
         { headers: ODDSPAPI_HEADERS },
       );
-      const partRows = partRes.ok ? ((await partRes.json()) as ParticipantRow[]) : [];
+      const partPayload = partRes.ok ? ((await partRes.json()) as ParticipantPayload) : null;
+      const partRows = asParticipantRows(partPayload);
       const nameByPart = new Map(partRows.map((p) => [p.participantId, p.participantName]));
 
       // 4) Mapeia para shape canônico Game.
