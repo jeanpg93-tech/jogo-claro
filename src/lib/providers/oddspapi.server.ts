@@ -377,28 +377,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       let lastFailure = "";
       const bookmakerParam = bookmakers.join(",");
 
-      for (const [index, tournament] of selected.entries()) {
-        if (index > 0) await wait(1_100);
-        const oddsUrl = apiUrl("/fixtures/odds/main", {
-          tournamentId: tournament.tournamentId,
-          bookmakers: bookmakerParam,
-          apiKey,
-        });
-        const oddsRes = await fetchWithRetry(oddsUrl);
-        if (!oddsRes.ok) {
-          failedTournaments++;
-          const body = await responseText(oddsRes);
-          lastFailure = `${tournament.tournamentSlug}: ${oddsRes.status} ${body.slice(0, 180)}`;
-          console.warn(`[oddspapi] fixtures/odds/main falhou para ${lastFailure}`);
-          continue;
-        }
-
-        const oddsJson = (await oddsRes.json().catch(() => null)) as FixturePayload;
-        const rows = asFixtureRows(oddsJson);
-        if (rows.length === 0) {
-          console.warn(`[oddspapi] resposta sem fixtures para ${tournament.tournamentSlug}.`);
-        }
-
+      const mergeFixtureRows = (rows: Array<OddsFixtureRow | OddsPapiFixtureRow>) => {
         for (const row of rows) {
           if (!row?.fixtureId) continue;
           const existing = fixturesById.get(row.fixtureId);
@@ -420,6 +399,55 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
             existing.bookmakers = { ...(existing.bookmakers ?? {}), ...(row.bookmakers ?? {}) };
           }
         }
+      };
+
+      for (const [index, tournament] of selected.entries()) {
+        if (index > 0) await wait(1_100);
+        const oddsUrl = apiUrl("/fixtures/odds/main", {
+          tournamentId: tournament.tournamentId,
+          bookmakers: bookmakerParam,
+          apiKey,
+        });
+        const oddsRes = await fetchWithRetry(oddsUrl);
+        if (!oddsRes.ok) {
+          const body = await responseText(oddsRes);
+          lastFailure = `${tournament.tournamentSlug}: ${oddsRes.status} ${body.slice(0, 180)}`;
+          console.warn(
+            `[oddspapi] fixtures/odds/main falhou para lista de casas (${lastFailure}). ` +
+              "Tentando casa por casa.",
+          );
+
+          let recoveredRows = 0;
+          for (const [bookIndex, bookmaker] of bookmakers.entries()) {
+            if (bookIndex > 0) await wait(1_100);
+            const singleUrl = apiUrl("/fixtures/odds/main", {
+              tournamentId: tournament.tournamentId,
+              bookmakers: bookmaker,
+              apiKey,
+            });
+            const singleRes = await fetchWithRetry(singleUrl);
+            if (!singleRes.ok) {
+              const singleBody = await responseText(singleRes);
+              lastFailure = `${tournament.tournamentSlug}/${bookmaker}: ${singleRes.status} ${singleBody.slice(0, 180)}`;
+              console.warn(`[oddspapi] casa ignorada: ${lastFailure}`);
+              continue;
+            }
+            const singleJson = (await singleRes.json().catch(() => null)) as FixturePayload;
+            const singleRows = asFixtureRows(singleJson);
+            recoveredRows += singleRows.length;
+            mergeFixtureRows(singleRows);
+          }
+
+          if (recoveredRows === 0) failedTournaments++;
+          continue;
+        }
+
+        const oddsJson = (await oddsRes.json().catch(() => null)) as FixturePayload;
+        const rows = asFixtureRows(oddsJson);
+        if (rows.length === 0) {
+          console.warn(`[oddspapi] resposta sem fixtures para ${tournament.tournamentSlug}.`);
+        }
+        mergeFixtureRows(rows);
       }
 
       if (fixturesById.size === 0 && failedTournaments === selected.length) {
