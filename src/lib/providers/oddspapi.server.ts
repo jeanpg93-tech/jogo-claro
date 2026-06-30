@@ -125,9 +125,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
           if (!h.price || !d.price || !a.price) continue;
           // Usa o label do catálogo se existir; cai para slug original.
           const label =
-            (
-              await import("@/lib/oddspapi-catalog")
-            ).ODDSPAPI_BOOKMAKERS.find((b) => b.slug === bmKey)?.label ?? bmKey;
+            ODDSPAPI_BOOKMAKERS.find((b) => b.slug === bmKey)?.label ?? bmKey;
           books.push({ book: label, home: h.price, draw: d.price, away: a.price });
         }
         if (books.length === 0) continue;
