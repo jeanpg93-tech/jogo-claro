@@ -58,12 +58,12 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
         };
         let cursor = addDays(today, -1);
         const until = addDays(today, 35);
-        while (cursor < until) {
+        while (cursor.getTime() < until.getTime()) {
           const to = addDays(cursor, 5);
           const url = new URL("https://api.oddspapi.io/v4/fixtures");
           url.searchParams.set("sportId", "10");
           url.searchParams.set("from", ymd(cursor));
-          url.searchParams.set("to", ymd(to < until ? to : until));
+          url.searchParams.set("to", ymd(to.getTime() < until.getTime() ? to : until));
           url.searchParams.set("statusId", "0");
           url.searchParams.set("hasOdds", "true");
           url.searchParams.set("language", "pt");
