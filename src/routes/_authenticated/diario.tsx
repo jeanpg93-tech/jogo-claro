@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpenCheck, Loader2, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { DEMO_GAMES, classifyGame, STATUS_META, type DemoGame } from "@/lib/demo-games";
+import { classifyGame, STATUS_META, type Game } from "@/lib/demo-games";
+import { useGames } from "@/lib/games-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,7 +74,10 @@ function DiarioPage() {
   const [confidence, setConfidence] = useState<number>(3);
   const [notes, setNotes] = useState("");
 
-  const selectedGame: DemoGame | undefined = DEMO_GAMES.find((g) => g.id === gameId);
+  const { data: gamesData } = useGames();
+  const games: Game[] = useMemo(() => gamesData?.games ?? [], [gamesData]);
+  const usingDemo = gamesData?.usingDemo ?? true;
+  const selectedGame: Game | undefined = games.find((g) => g.id === gameId);
 
   async function load() {
     if (!user) return;
@@ -96,7 +100,7 @@ function DiarioPage() {
     e.preventDefault();
     if (!user) return;
     if (!selectedGame) {
-      toast.error("Escolha um jogo demonstrativo.");
+      toast.error(usingDemo ? "Escolha um jogo demonstrativo." : "Escolha um jogo.");
       return;
     }
     setSaving(true);
@@ -155,13 +159,15 @@ function DiarioPage() {
         className="mt-8 grid gap-4 rounded-xl border border-border/60 bg-card p-5 md:grid-cols-2"
       >
         <div className="md:col-span-2">
-          <Label>Jogo demonstrativo</Label>
+          <Label>{usingDemo ? "Jogo demonstrativo" : "Jogo"}</Label>
           <Select value={gameId} onValueChange={setGameId}>
             <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Escolha um jogo do painel" />
+              <SelectValue
+                placeholder={usingDemo ? "Escolha um jogo demonstrativo" : "Escolha um jogo"}
+              />
             </SelectTrigger>
             <SelectContent>
-              {DEMO_GAMES.map((g) => (
+              {games.map((g) => (
                 <SelectItem key={g.id} value={g.id}>
                   {g.home} vs {g.away} — {g.competition}
                 </SelectItem>

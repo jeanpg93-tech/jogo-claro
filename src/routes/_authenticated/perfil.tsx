@@ -4,7 +4,8 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { DEMO_GAMES, RULES } from "@/lib/demo-games";
+import { RULES } from "@/lib/demo-games";
+import { useGames } from "@/lib/games-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,9 +37,10 @@ function PerfilPage() {
     terms_accepted_at?: string;
   };
 
-  const competitions = useMemo(
-    () => Array.from(new Set(DEMO_GAMES.map((g) => g.competition))).sort(),
-    [],
+  const { data: gamesData } = useGames();
+  const competitions = useMemo<string[]>(
+    () => Array.from(new Set((gamesData?.games ?? []).map((g) => g.competition))).sort(),
+    [gamesData],
   );
 
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
