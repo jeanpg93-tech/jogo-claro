@@ -921,7 +921,8 @@ jobs:
         consultados. O cron em si não consome créditos — apenas as chamadas
         externas.
       </div>
-    </section>
+      </div>
+    </CollapsibleSection>
   );
 }
 
