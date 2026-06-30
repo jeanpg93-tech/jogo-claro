@@ -6,6 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "@/lib/sports-catalog";
+import {
+  ODDSPAPI_BOOKMAKERS,
+  ODDSPAPI_TOURNAMENTS,
+  DEFAULT_ODDSPAPI_BOOKMAKERS,
+  DEFAULT_ODDSPAPI_TOURNAMENTS,
+} from "@/lib/oddspapi-catalog";
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
