@@ -21,8 +21,10 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
             { status: 500 },
           );
         }
+        const { ODDSPAPI_HEADERS } = await import("@/lib/providers/oddspapi.server");
         const res = await fetch(
           `https://api.oddspapi.io/v4/tournaments?sportId=10&language=pt&apiKey=${encodeURIComponent(apiKey)}`,
+          { headers: ODDSPAPI_HEADERS },
         );
         const text = await res.text();
         if (!res.ok) {
