@@ -145,21 +145,59 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const nameById = new Map(selected.map((t) => [t.tournamentId, t.tournamentName]));
       const ids = selected.map((t) => t.tournamentId).join(",");
 
-      // 2) Odds por torneio (uma chamada com todos os tournamentIds e bookmakers).
-      const oddsUrl =
-        `${HOST}/v4/odds-by-tournaments?bookmakers=${encodeURIComponent(bookmakers.join(","))}` +
-        `&tournamentIds=${encodeURIComponent(ids)}&language=pt&oddsFormat=decimal&apiKey=${encodeURIComponent(apiKey)}`;
-      const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
-      if (!oddsRes.ok) {
-        const body = await oddsRes.text().catch(() => "");
-        throw new Error(
-          `OddsPapi odds-by-tournaments retornou ${oddsRes.status}: ${body.slice(0, 240)}`,
-        );
+      // 2) Odds por torneio. A OddsPapi aceita exatamente UMA casa por chamada
+      // no parâmetro singular `bookmaker`; juntamos as respostas por fixture.
+      const fixturesById = new Map<string, OddsFixtureRow>();
+      let failedBookmakers = 0;
+      let lastFailure = "";
+
+      for (const bookmaker of bookmakers) {
+        const oddsUrl =
+          `${HOST}/v4/odds-by-tournaments?bookmaker=${encodeURIComponent(bookmaker)}` +
+          `&tournamentIds=${encodeURIComponent(ids)}&language=pt&oddsFormat=decimal&apiKey=${encodeURIComponent(apiKey)}`;
+        const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
+        if (!oddsRes.ok) {
+          failedBookmakers++;
+          const body = await oddsRes.text().catch(() => "");
+          lastFailure = `${bookmaker}: ${oddsRes.status} ${body.slice(0, 180)}`;
+          console.warn(`[oddspapi] odds-by-tournaments falhou para ${lastFailure}`);
+          continue;
+        }
+
+        const oddsJson = await oddsRes.json();
+        const rows = Array.isArray(oddsJson)
+          ? (oddsJson as OddsFixtureRow[])
+          : ([oddsJson] as OddsFixtureRow[]);
+
+        for (const row of rows) {
+          if (!row?.fixtureId) continue;
+          const existing = fixturesById.get(row.fixtureId);
+          if (!existing) {
+            fixturesById.set(row.fixtureId, {
+              ...row,
+              bookmakerOdds: { ...(row.bookmakerOdds ?? {}) },
+            });
+            continue;
+          }
+          existing.bookmakerOdds = {
+            ...(existing.bookmakerOdds ?? {}),
+            ...(row.bookmakerOdds ?? {}),
+          };
+          existing.hasOdds = existing.hasOdds || row.hasOdds;
+          if (row.updatedAt && (!existing.updatedAt || row.updatedAt > existing.updatedAt)) {
+            existing.updatedAt = row.updatedAt;
+          }
+        }
       }
-      const oddsJson = await oddsRes.json();
-      const fixtures = Array.isArray(oddsJson)
-        ? (oddsJson as OddsFixtureRow[])
-        : ([oddsJson] as OddsFixtureRow[]);
+
+      if (fixturesById.size === 0 && failedBookmakers === bookmakers.length) {
+        throw new Error(`OddsPapi não retornou odds para nenhuma casa. Último erro: ${lastFailure}`);
+      }
+
+      const fixtures = Array.from(fixturesById.values());
+      console.log(
+        `[oddspapi] fixtures recebidos: ${fixtures.length}; casas válidas: ${bookmakers.join(",")}`,
+      );
       if (fixtures.length === 0) return [];
 
       // 3) Mapa de participantes (uma chamada para o esporte).
