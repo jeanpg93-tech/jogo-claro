@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/hooks/use-role";
+import { KickoffCountdown } from "@/lib/kickoff-countdown";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
