@@ -496,10 +496,9 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const nameById = new Map(tournamentRows.map((t) => [t.tournamentId, t.tournamentName]));
       const ids = tournamentRows.map((t) => t.tournamentId).join(",");
 
-      // 2) Odds por torneio. A documentação v4 usa o parâmetro `bookmakers`
-      // (plural). Primeiro tentamos todas as casas em uma chamada; se alguma
-      // restrição derrubar o lote, tentamos casa a casa e ignoramos apenas a
-      // casa negada.
+      // 2) Odds por torneio. Apesar de alguns trechos da documentação citarem
+      // `bookmakers`, a própria API respondeu que este endpoint aceita
+      // exatamente uma casa por chamada usando `bookmaker` no singular.
       const fixturesById = new Map<string, OddsFixtureRow | OddsPapiFixtureRow>();
       let successfulRequests = 0;
       let lastFailure = "";
@@ -528,9 +527,9 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         }
       };
 
-      async function fetchOddsByTournament(bookmakerList: string[], label: string) {
+      async function fetchOddsByTournament(bookmaker: string) {
         const oddsUrl = apiUrl("/odds-by-tournaments", {
-          bookmakers: bookmakerList.join(","),
+          bookmaker,
           tournamentIds: ids,
           language: "pt",
           verbosity: 3,
@@ -539,25 +538,21 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         const oddsRes = await fetchWithRetry(oddsUrl);
         if (!oddsRes.ok) {
           const body = await responseText(oddsRes);
-          lastFailure = `${label}: ${oddsRes.status} ${body.slice(0, 180)}`;
+          lastFailure = `${bookmaker}: ${oddsRes.status} ${body.slice(0, 180)}`;
           return false;
         }
         successfulRequests++;
         const oddsJson = (await oddsRes.json().catch(() => null)) as FixturePayload;
         const rows = asFixtureRows(oddsJson);
-        if (rows.length === 0) console.warn(`[oddspapi] resposta sem fixtures para ${label}.`);
+        if (rows.length === 0) console.warn(`[oddspapi] resposta sem fixtures para ${bookmaker}.`);
         mergeFixtureRows(rows);
         return true;
       }
 
-      const bulkOk = await fetchOddsByTournament(bookmakers, "lote");
-      if (!bulkOk) {
-        console.warn(`[oddspapi] lote ignorado em odds-by-tournaments: ${lastFailure}`);
-        for (const [bookIndex, bookmaker] of bookmakers.entries()) {
-          if (bookIndex > 0) await wait(1_100);
-          const ok = await fetchOddsByTournament([bookmaker], bookmaker);
-          if (!ok) console.warn(`[oddspapi] casa ignorada em odds-by-tournaments: ${lastFailure}`);
-        }
+      for (const [bookIndex, bookmaker] of bookmakers.entries()) {
+        if (bookIndex > 0) await wait(1_100);
+        const ok = await fetchOddsByTournament(bookmaker);
+        if (!ok) console.warn(`[oddspapi] casa ignorada em odds-by-tournaments: ${lastFailure}`);
       }
 
       // Fallback documentado: se /odds-by-tournaments não devolver payload útil,
