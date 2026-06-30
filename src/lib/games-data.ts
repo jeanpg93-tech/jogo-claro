@@ -93,12 +93,74 @@ async function fetchAllGames(): Promise<{ games: Game[]; usingDemo: boolean; las
   const games = rows.map((r) =>
     rowsToGame(r, oddsByGame.get(r.id) ?? [], refByGame.get(r.id)),
   );
+  const merged = mergeDuplicates(games);
   const lastSync = rows
     .map((r) => r.updated_at)
     .filter((s): s is string => Boolean(s))
     .sort()
     .at(-1) ?? null;
-  return { games, usingDemo: false, lastSync };
+  return { games: merged, usingDemo: false, lastSync };
+}
+
+function mergeKey(g: Game): string {
+  const t = new Date(g.kickoff);
+  // Arredonda para minuto para tolerar pequenas variações entre provedores.
+  const minute = `${t.getUTCFullYear()}-${t.getUTCMonth()}-${t.getUTCDate()}-${t.getUTCHours()}-${t.getUTCMinutes()}`;
+  return `${g.home.toLowerCase()}|${g.away.toLowerCase()}|${minute}`;
+}
+
+function median(nums: number[]): number {
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+}
+
+function mergeDuplicates(games: Game[]): Game[] {
+  const groups = new Map<string, Game[]>();
+  for (const g of games) {
+    const k = mergeKey(g);
+    const list = groups.get(k) ?? [];
+    list.push(g);
+    groups.set(k, list);
+  }
+  const out: Game[] = [];
+  for (const list of groups.values()) {
+    if (list.length === 1) {
+      out.push(list[0]);
+      continue;
+    }
+    // Mescla books por nome (case-insensitive), recalcula reference e usa updatedAt mais recente.
+    const byBook = new Map<string, BookOdds>();
+    for (const g of list) {
+      for (const b of g.books) {
+        const key = b.book.toLowerCase();
+        if (!byBook.has(key)) byBook.set(key, b);
+      }
+    }
+    const books = Array.from(byBook.values());
+    const reference =
+      books.length > 0
+        ? {
+            home: median(books.map((b) => b.home)),
+            draw: median(books.map((b) => b.draw)),
+            away: median(books.map((b) => b.away)),
+          }
+        : null;
+    const updatedAt = list
+      .map((g) => g.updatedAt)
+      .filter((v): v is string => Boolean(v))
+      .sort()
+      .at(-1) ?? null;
+    // Prefere id/competition de The Odds API (1º na ordem natural por kickoff).
+    const base = list[0];
+    out.push({
+      ...base,
+      books,
+      reference,
+      updatedAt,
+    });
+  }
+  return out;
 }
 
 export function useGames() {
