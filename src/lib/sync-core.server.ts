@@ -58,9 +58,10 @@ export async function runSync(): Promise<MultiSyncResult> {
     const activeLabels = sports
       .map((k) => SPORTS_CATALOG.find((s) => s.key === k)?.label)
       .filter((v): v is string => Boolean(v));
-    const provider = {
-      ...getTheOddsApi(),
-      fetchUpcomingGames: () => getTheOddsApi().fetchUpcomingGames(sports),
+    const base = getTheOddsApi();
+    const provider: OddsProvider = {
+      name: base.name,
+      fetchUpcomingGames: () => base.fetchUpcomingGames(sports),
     };
     tasks.push({ name: "the-odds-api", provider, activeLabels });
   }
