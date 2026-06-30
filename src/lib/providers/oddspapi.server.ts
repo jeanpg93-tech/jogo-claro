@@ -385,12 +385,12 @@ async function fetchFixtureDiscovery(apiKey: string, tournamentSlugs: string[]):
   let failures = 0;
   let lastFailure = "";
 
-  while (cursor < until) {
+  while (cursor.getTime() < until.getTime()) {
     const to = addDays(cursor, 5);
     const url = apiUrl("/fixtures", {
       sportId: SPORT_ID,
       from: ymd(cursor),
-      to: ymd(to < until ? to : until),
+      to: ymd(to.getTime() < until.getTime() ? to : until),
       statusId: 0,
       hasOdds: true,
       language: "pt",
@@ -413,7 +413,7 @@ async function fetchFixtureDiscovery(apiKey: string, tournamentSlugs: string[]):
     }
 
     cursor = to;
-    if (cursor < until) await wait(2_100);
+    if (cursor.getTime() < until.getTime()) await wait(2_100);
   }
 
   if (discovered.size === 0 && failures > 0) {
