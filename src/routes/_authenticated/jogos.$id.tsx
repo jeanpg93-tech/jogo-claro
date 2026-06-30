@@ -102,6 +102,7 @@ function GameDetail({ game }: { game: Game }) {
                 dateStyle: "full",
                 timeStyle: "short",
               })}
+              <KickoffCountdown kickoff={game.kickoff} books={game.books.length} />
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${game.demo ? "bg-muted" : "bg-emerald-500/15 text-emerald-300"}`}
               >
