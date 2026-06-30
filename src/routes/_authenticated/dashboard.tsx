@@ -31,15 +31,23 @@ function DashboardPage() {
   const { effectiveIsAdmin, isAdmin, viewMode } = useRole();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("todos");
   const [query, setQuery] = useState("");
+  const [competition, setCompetition] = useState<string>(ALL_COMPETITIONS);
 
   const { data, isLoading } = useGames();
   const games = data?.games ?? [];
   const usingDemo = data?.usingDemo ?? true;
   const lastSync = data?.lastSync ?? null;
 
+  const competitions = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of games) set.add(g.competition);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [games]);
+
   const items = useMemo(() => {
     return games.map((g) => ({ g, c: classifyGame(g) })).filter(({ g, c }) => {
       if (filter !== "todos" && c.status !== filter) return false;
+      if (competition !== ALL_COMPETITIONS && g.competition !== competition) return false;
       if (!query) return true;
       const q = query.toLowerCase();
       return (
@@ -48,7 +56,8 @@ function DashboardPage() {
         g.competition.toLowerCase().includes(q)
       );
     });
-  }, [filter, query, games]);
+  }, [filter, query, competition, games]);
+
 
   const counts = useMemo(() => {
     const acc: Record<GameStatus, number> = {
