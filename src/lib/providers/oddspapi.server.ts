@@ -251,14 +251,50 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       );
       if (fixtures.length === 0) return [];
 
-      // 3) Mapa de participantes (uma chamada para o esporte).
-      const partRes = await fetch(
-        `${HOST}/v4/participants?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
-        { headers: ODDSPAPI_HEADERS },
+      // 3) Mapa de participantes. A v4 retorna paginado e/ou envolvido em
+      // {data:[...]}, por isso buscamos por torneio e tentamos várias páginas
+      // até cobrir todos os IDs que aparecem nos fixtures.
+      const neededIds = new Set<number>();
+      for (const fx of fixtures) {
+        neededIds.add(fx.participant1Id);
+        neededIds.add(fx.participant2Id);
+      }
+      const nameByPart = new Map<number, string>();
+
+      async function ingestParticipants(url: string) {
+        const res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+        if (!res.ok) return;
+        const payload = (await res.json().catch(() => null)) as ParticipantPayload;
+        for (const p of asParticipantRows(payload)) {
+          if (p?.participantId && p.participantName) {
+            nameByPart.set(p.participantId, p.participantName);
+          }
+        }
+      }
+
+      // Primeiro: tenta restringir aos torneios selecionados.
+      await ingestParticipants(
+        `${HOST}/v4/participants?sportId=${SPORT_ID}&tournamentIds=${encodeURIComponent(ids)}` +
+          `&language=pt&apiKey=${encodeURIComponent(apiKey)}`,
       );
-      const partPayload = partRes.ok ? ((await partRes.json()) as ParticipantPayload) : null;
-      const partRows = asParticipantRows(partPayload);
-      const nameByPart = new Map(partRows.map((p) => [p.participantId, p.participantName]));
+
+      // Fallback paginado caso ainda faltem nomes.
+      let page = 1;
+      while (
+        Array.from(neededIds).some((id) => !nameByPart.has(id)) &&
+        page <= 20
+      ) {
+        await ingestParticipants(
+          `${HOST}/v4/participants?sportId=${SPORT_ID}&page=${page}&limit=500` +
+            `&language=pt&apiKey=${encodeURIComponent(apiKey)}`,
+        );
+        page += 1;
+      }
+      console.log(
+        `[oddspapi] participantes carregados: ${nameByPart.size}; faltando: ${
+          Array.from(neededIds).filter((id) => !nameByPart.has(id)).length
+        }`,
+      );
 
       // 4) Mapeia para shape canônico Game.
       const games: Game[] = [];
