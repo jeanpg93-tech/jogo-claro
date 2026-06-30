@@ -100,7 +100,7 @@ function DiarioPage() {
     e.preventDefault();
     if (!user) return;
     if (!selectedGame) {
-      toast.error("Escolha um jogo demonstrativo.");
+      toast.error(usingDemo ? "Escolha um jogo demonstrativo." : "Escolha um jogo.");
       return;
     }
     setSaving(true);
