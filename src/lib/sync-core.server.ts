@@ -4,11 +4,13 @@ import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "./providers/index.server";
 
 function getAdmin() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Usamos prefixo EXT_ porque o Lovable reserva o prefixo SUPABASE_ para
+  // projetos com Lovable Cloud (não é o nosso caso — usamos Supabase externo).
+  const url = process.env.EXT_SUPABASE_URL;
+  const key = process.env.EXT_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new Error(
-      "SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios para sincronização.",
+      "EXT_SUPABASE_URL e EXT_SUPABASE_SERVICE_ROLE_KEY são obrigatórios para sincronização.",
     );
   }
   return createClient(url, key, {
