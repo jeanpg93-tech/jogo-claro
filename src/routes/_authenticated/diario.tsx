@@ -366,7 +366,7 @@ function JournalFilters({
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => remove(e.id)}
+                  onClick={() => onRemove(e.id)}
                   title="Excluir registro"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -381,9 +381,10 @@ function JournalFilters({
           </article>
         ))}
       </div>
-    </div>
+    </>
   );
 }
+
 
 function JournalStats({ entries }: { entries: JournalEntry[] | null }) {
   if (!entries || entries.length === 0) return null;
