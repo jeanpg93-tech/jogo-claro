@@ -1,7 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+// Projeto Supabase externo (URL pública + chave publishable — seguras no cliente; RLS protege os dados).
+const FALLBACK_URL = "https://xnfwakrndppkyxunvriq.supabase.co";
+const FALLBACK_KEY = "sb_publishable_Z5sOnZ3VN_X53x_VMffNyQ_68QCC7pL";
+
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? FALLBACK_URL;
+const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ?? FALLBACK_KEY;
 
 export const isSupabaseConfigured = Boolean(url && key);
 
