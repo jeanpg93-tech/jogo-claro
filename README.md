@@ -1,73 +1,60 @@
 # Visão de Jogo
 
-Plataforma de análise pré-jogo de futebol. Não recebe apostas, não executa apostas e não garante resultados.
+Plataforma de análise pré-jogo de futebol (mercado 1X2 — vencedor da partida).
+Não recebe apostas, não executa apostas, não processa pagamentos e não promete resultados.
+
+## Stack
+
+- TanStack Start (Vite) + React 19 + Tailwind v4
+- Supabase **externo** (sem Lovable Cloud)
+- The Odds API como provedor de odds reais
+- **Sem IA nativa do Lovable** para decidir oportunidades — todas as classificações seguem regras objetivas e transparentes (ver `/metodologia`)
 
 ## Configuração — Supabase externo
 
-O projeto usa um Supabase **externo**, criado e controlado fora do Lovable (sem Lovable Cloud).
-
 1. Crie um projeto em https://supabase.com.
-2. Em **Project Settings → API**, copie a `Project URL` e a `anon public key`.
-3. Crie um arquivo `.env` na raiz com base em `.env.example`:
+2. Em **Project Settings → API**, copie a `Project URL` e a `publishable key`.
+3. Crie um `.env` na raiz com base em `.env.example`:
 
 ```
 VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-anon-publica
+VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publishable
 ```
 
-4. (Opcional, recomendado) Habilite confirmação de e-mail em **Authentication → Providers → Email**.
+4. Em **Authentication → Providers → Email**, habilite confirmação de e-mail (recomendado).
+5. Execute as migrações SQL no editor do Supabase (tabelas `profiles`, `user_roles`,
+   `journal_entries`, `user_preferences`, `games`, `game_odds`, `game_reference`,
+   `sync_runs`, `app_settings`) conforme entregue durante a implementação.
 
-### SQL inicial sugerido
+## Sincronização de dados reais
 
-Execute no editor SQL do Supabase para criar a tabela `profiles` e o trigger que cria um perfil quando um usuário se cadastra:
+- Provedor: The Odds API (plano Free).
+- Segredos no servidor: `THE_ODDS_API_KEY`, `EXT_SUPABASE_SERVICE_ROLE_KEY`, `SYNC_SECRET`.
+- Endpoint público para cron externo: `POST /api/public/sync` com header `x-sync-secret`.
+- Painel admin: `/admin/sincronizacao` permite rodar sincronização manual, escolher
+  competições cobertas e copiar configuração para cron-job.org ou GitHub Actions.
+- Cadência sugerida: 2x/dia janela ampla + até 4x/dia em dias de rodada.
 
-```sql
-create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  full_name text,
-  birth_date date,
-  terms_accepted_at timestamptz,
-  created_at timestamptz not null default now()
-);
+## Telas implementadas
 
-grant select, insert, update on public.profiles to authenticated;
-grant all on public.profiles to service_role;
+- Landing pública, cadastro e login (com validação 18+ e aceite de termos)
+- Dashboard com filtros por competição
+- Detalhe do jogo com tabela de **odds por casa** (regiões EU/UK/AU) e seleção manual
+  para cálculo de diferença frente à referência
+- Diário pessoal (privado, com filtros e estatísticas)
+- Metodologia (regras objetivas e transparentes)
+- Perfil e preferências (competições favoritas, limiar pessoal)
+- Admin: alternância de papel e painel de sincronização
 
-alter table public.profiles enable row level security;
+## Dados demonstrativos
 
-create policy "Usuário lê o próprio perfil"
-  on public.profiles for select to authenticated
-  using (auth.uid() = id);
+O painel, o detalhe do jogo, o diário e o perfil usam os jogos reais sincronizados
+no Supabase. Os dados demonstrativos permanecem **apenas como fallback** quando
+ainda não houve nenhuma sincronização, e são sempre claramente identificados.
 
-create policy "Usuário atualiza o próprio perfil"
-  on public.profiles for update to authenticated
-  using (auth.uid() = id);
+## O que NÃO é feito
 
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, full_name, birth_date, terms_accepted_at)
-  values (
-    new.id,
-    new.raw_user_meta_data->>'full_name',
-    nullif(new.raw_user_meta_data->>'birth_date','')::date,
-    nullif(new.raw_user_meta_data->>'terms_accepted_at','')::timestamptz
-  );
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-```
-
-## Fases
-
-- **Fase 1 (atual):** identidade, landing, cadastro/login (com confirmação 18+ e aceite dos termos), perfil, páginas legais. Conectado a Supabase externo.
-- Fase 2: dashboard com jogos demonstrativos e status analítico.
-- Fase 3: diário pessoal, metodologia e preferências.
-- Fase 4: integração com fontes externas de dados reais.
-
-Sem IA nativa do Lovable. Sem Lovable Cloud.
+- Sem Lovable Cloud, sem IA nativa do Lovable
+- Sem links para casas de apostas, sem carteira, depósito ou saque
+- Sem palpites automáticos, sem promessa de lucro
+- Sem mercados além de 1X2 nesta fase
