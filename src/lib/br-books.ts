@@ -1,10 +1,22 @@
-// Casas listadas pela The Odds API que operam/aceitam jogadores no Brasil.
-// IMPORTANTE: Betano, Bet365 (internacional), KTO, Pixbet, Esportes da Sorte,
-// Superbet, Galera.bet, Estrela Bet e demais casas exclusivamente brasileiras
-// NÃO estão disponíveis em nenhuma API genérica de odds — incluindo a
-// The Odds API. Por isso não aparecem mesmo quando têm cotações no site.
+// Casas com badge "BR" — destacadas no painel/detalhe.
+// Inclui casas que aparecem na The Odds API (limitado) e casas reconhecidas
+// pelo provedor OddsPapi (cobertura BR real: Betano, Bet365, KTO etc.).
 
 const BR_BOOKS_RAW = [
+  // Trazidas pelo OddsPapi (cobertura BR real)
+  "Betano",
+  "Betano BR",
+  "bet365",
+  "KTO",
+  "Estrela Bet",
+  "Stake BR",
+  "Superbet BR",
+  "Betnacional",
+  "Sportingbet BR",
+  "betboo BR",
+  "Brazino777 BR",
+  "PlayPix",
+  // Globais que aceitam jogadores no Brasil (The Odds API)
   "1xBet",
   "Betfair Exchange",
   "Betsson",

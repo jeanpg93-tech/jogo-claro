@@ -6,6 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "@/lib/sports-catalog";
+import {
+  ODDSPAPI_BOOKMAKERS,
+  ODDSPAPI_TOURNAMENTS,
+  DEFAULT_ODDSPAPI_BOOKMAKERS,
+  DEFAULT_ODDSPAPI_TOURNAMENTS,
+} from "@/lib/oddspapi-catalog";
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -207,10 +213,276 @@ function AdminSyncPage() {
         })}
       </div>
 
+      <ProvidersPanel />
+
       <SportsSelector />
+
+      <OddsPapiSelector />
 
       <CronDocs />
     </div>
+  );
+}
+
+interface SettingsResponse {
+  sports: string[];
+  providers: { name: "the-odds-api" | "oddspapi"; enabled: boolean; keyConfigured: boolean }[];
+  oddspapi: { tournaments: string[]; bookmakers: string[] };
+}
+
+async function fetchSettings(method: "GET" | "POST", body?: unknown): Promise<SettingsResponse> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Sessão expirada. Entre novamente.");
+  const res = await fetch("/api/admin/sync-settings", {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as { error?: string })?.error ?? `Erro ${res.status}`);
+  return json as SettingsResponse;
+}
+
+function ProvidersPanel() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<"the-odds-api" | "oddspapi" | null>(null);
+  const [providers, setProviders] = useState<SettingsResponse["providers"]>([]);
+
+  useEffect(() => {
+    fetchSettings("GET")
+      .then((r) => setProviders(r.providers))
+      .catch((e) => toast.error(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function toggle(name: "the-odds-api" | "oddspapi", enabled: boolean) {
+    setSaving(name);
+    try {
+      const r = await fetchSettings("POST", { providers: { [name]: enabled } });
+      setProviders(r.providers);
+      toast.success(`${labelOf(name)} ${enabled ? "ativada" : "desativada"}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  function labelOf(name: "the-odds-api" | "oddspapi") {
+    return name === "the-odds-api" ? "The Odds API" : "OddsPapi";
+  }
+
+  return (
+    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
+      <h2 className="text-lg font-semibold">Provedores de odds</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Ative ou desative cada fonte independentemente. Desligado = não consome cota
+        nem grava jogos.
+      </p>
+      {loading ? (
+        <div className="mt-4 flex items-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {providers.map((p) => (
+            <div
+              key={p.name}
+              className="flex items-center justify-between rounded-lg border border-border/60 p-3"
+            >
+              <div>
+                <div className="text-sm font-medium">{labelOf(p.name)}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  Chave:{" "}
+                  <span
+                    className={
+                      p.keyConfigured ? "text-emerald-400" : "text-amber-400"
+                    }
+                  >
+                    {p.keyConfigured ? "configurada" : "ausente"}
+                  </span>
+                </div>
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary"
+                  checked={p.enabled}
+                  disabled={saving === p.name || !p.keyConfigured}
+                  onChange={(e) => toggle(p.name, e.target.checked)}
+                />
+                <span>{p.enabled ? "Ativo" : "Inativo"}</span>
+                {saving === p.name && <Loader2 className="h-3 w-3 animate-spin" />}
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function OddsPapiSelector() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [tournaments, setTournaments] = useState<Set<string>>(new Set());
+  const [bookmakers, setBookmakers] = useState<Set<string>>(new Set());
+
+  const tournGroups = useMemo(() => {
+    const g = new Map<string, typeof ODDSPAPI_TOURNAMENTS>();
+    for (const t of ODDSPAPI_TOURNAMENTS) {
+      const list = g.get(t.group) ?? [];
+      list.push(t);
+      g.set(t.group, list);
+    }
+    return Array.from(g.entries());
+  }, []);
+
+  useEffect(() => {
+    fetchSettings("GET")
+      .then((r) => {
+        const op = r.providers.find((p) => p.name === "oddspapi");
+        setEnabled(Boolean(op?.enabled));
+        const t = r.oddspapi.tournaments.length > 0
+          ? r.oddspapi.tournaments
+          : DEFAULT_ODDSPAPI_TOURNAMENTS;
+        const b = r.oddspapi.bookmakers.length > 0
+          ? r.oddspapi.bookmakers
+          : DEFAULT_ODDSPAPI_BOOKMAKERS;
+        setTournaments(new Set(t));
+        setBookmakers(new Set(b));
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function toggleSet(set: Set<string>, key: string, setFn: (s: Set<string>) => void) {
+    const next = new Set(set);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setFn(next);
+  }
+
+  async function save() {
+    if (tournaments.size === 0 || bookmakers.size === 0) {
+      toast.error("Selecione ao menos 1 torneio e 1 casa.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await fetchSettings("POST", {
+        oddspapi: {
+          tournaments: Array.from(tournaments),
+          bookmakers: Array.from(bookmakers),
+        },
+      });
+      toast.success("Configuração OddsPapi salva.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
+        <div className="flex items-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando OddsPapi…
+        </div>
+      </section>
+    );
+  }
+
+  if (!enabled) return null;
+
+  return (
+    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">OddsPapi — torneios e casas</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Selecione os torneios e as casas que serão buscados na OddsPapi.
+            Casas BR aparecem com destaque.
+          </p>
+        </div>
+        <Button size="sm" onClick={save} disabled={saving}>
+          {saving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          Salvar
+        </Button>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-border/60 p-3">
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+            Torneios ({tournaments.size})
+          </div>
+          {tournGroups.map(([group, items]) => (
+            <div key={group} className="mt-3">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                {group}
+              </div>
+              <div className="mt-1 space-y-1">
+                {items.map((t) => (
+                  <label
+                    key={t.slug}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-background/50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tournaments.has(t.slug)}
+                      onChange={() => toggleSet(tournaments, t.slug, setTournaments)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="flex-1">{t.label}</span>
+                    <code className="text-[10px] text-muted-foreground">{t.slug}</code>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-border/60 p-3">
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+            Casas ({bookmakers.size})
+          </div>
+          <div className="mt-3 space-y-1">
+            {[...ODDSPAPI_BOOKMAKERS]
+              .sort((a, b) => Number(b.isBR) - Number(a.isBR))
+              .map((b) => (
+                <label
+                  key={b.slug}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-background/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={bookmakers.has(b.slug)}
+                    onChange={() => toggleSet(bookmakers, b.slug, setBookmakers)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span className="flex-1">{b.label}</span>
+                  {b.isBR && (
+                    <span className="rounded-sm border border-emerald-500/30 bg-emerald-500/10 px-1 py-0.5 text-[9px] uppercase tracking-widest text-emerald-300">
+                      BR
+                    </span>
+                  )}
+                  <code className="text-[10px] text-muted-foreground">{b.slug}</code>
+                </label>
+              ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

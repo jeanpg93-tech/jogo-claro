@@ -1,12 +1,19 @@
 // Orquestrador de sincronização. Executa apenas no servidor.
-// Lê env vars do Cloudflare Worker, monta cliente service-role, faz upsert.
+// Suporta múltiplos provedores ativos simultaneamente (toggle no app_settings).
 import { createClient } from "@supabase/supabase-js";
-import { getProvider } from "./providers/index.server";
+import {
+  getTheOddsApi,
+  getOddsPapi,
+  type ProviderName,
+} from "./providers/index.server";
+import type { OddsProvider } from "./providers/types";
 import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "./sports-catalog";
+import {
+  DEFAULT_ODDSPAPI_BOOKMAKERS,
+  DEFAULT_ODDSPAPI_TOURNAMENTS,
+} from "./oddspapi-catalog";
 
 function getAdmin() {
-  // Usamos prefixo EXT_ porque o Lovable reserva o prefixo SUPABASE_ para
-  // projetos com Lovable Cloud (não é o nosso caso — usamos Supabase externo).
   const url = process.env.EXT_SUPABASE_URL;
   const key = process.env.EXT_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
@@ -19,6 +26,8 @@ function getAdmin() {
   });
 }
 
+type Admin = ReturnType<typeof getAdmin>;
+
 export interface SyncResult {
   ok: boolean;
   provider: string;
@@ -29,30 +38,88 @@ export interface SyncResult {
   error?: string;
 }
 
-export async function runSync(): Promise<SyncResult> {
-  const startedAt = new Date();
-  const provider = getProvider();
+export interface MultiSyncResult {
+  ok: boolean;
+  results: SyncResult[];
+  // Agregado, para compatibilidade com a UI atual.
+  gamesInserted: number;
+  gamesUpdated: number;
+}
+
+export async function runSync(): Promise<MultiSyncResult> {
   const admin = getAdmin();
+  const enabled = await getProvidersEnabled(admin);
+
+  const tasks: Array<{ name: ProviderName; provider: OddsProvider; activeLabels: string[] }> = [];
+
+  if (enabled["the-odds-api"]) {
+    const selected = (await getJsonSetting<{ sports: string[] }>(admin, "selected_sports"))?.sports;
+    const sports = selected && selected.length > 0 ? selected : DEFAULT_SELECTED_SPORTS;
+    const activeLabels = sports
+      .map((k) => SPORTS_CATALOG.find((s) => s.key === k)?.label)
+      .filter((v): v is string => Boolean(v));
+    const base = getTheOddsApi();
+    const provider: OddsProvider = {
+      name: base.name,
+      fetchUpcomingGames: () => base.fetchUpcomingGames(sports),
+    };
+    tasks.push({ name: "the-odds-api", provider, activeLabels });
+  }
+
+  if (enabled["oddspapi"]) {
+    const tcfg = await getJsonSetting<{ tournaments: string[] }>(admin, "oddspapi_tournaments");
+    const bcfg = await getJsonSetting<{ bookmakers: string[] }>(admin, "oddspapi_bookmakers");
+    const tournaments =
+      tcfg?.tournaments && tcfg.tournaments.length > 0
+        ? tcfg.tournaments
+        : DEFAULT_ODDSPAPI_TOURNAMENTS;
+    const bookmakers =
+      bcfg?.bookmakers && bcfg.bookmakers.length > 0
+        ? bcfg.bookmakers
+        : DEFAULT_ODDSPAPI_BOOKMAKERS;
+    const provider = getOddsPapi({ tournaments, bookmakers });
+    tasks.push({ name: "oddspapi", provider, activeLabels: [] });
+  }
+
+  const results: SyncResult[] = [];
+  for (const t of tasks) {
+    results.push(await runOneProvider(admin, t.name, t.provider, t.activeLabels));
+  }
+
+  const gamesInserted = results.reduce((acc, r) => acc + r.gamesInserted, 0);
+  const gamesUpdated = results.reduce((acc, r) => acc + r.gamesUpdated, 0);
+  return {
+    ok: results.every((r) => r.ok),
+    results,
+    gamesInserted,
+    gamesUpdated,
+  };
+}
+
+async function runOneProvider(
+  admin: Admin,
+  providerName: ProviderName,
+  provider: OddsProvider,
+  activeLabels: string[],
+): Promise<SyncResult> {
+  const startedAt = new Date();
   let inserted = 0;
   let updated = 0;
   let oddsInserted = 0;
   let error: string | undefined;
 
   try {
-    const selectedSports = await getSelectedSports(admin);
-    const activeSportKeys = selectedSports ?? DEFAULT_SELECTED_SPORTS;
-    const activeLabels = activeSportKeys
-      .map((k) => SPORTS_CATALOG.find((s) => s.key === k)?.label)
-      .filter((v): v is string => Boolean(v));
-
-    // Limpeza imediata: remove jogos de competições que não estão mais selecionadas.
-    // Roda ANTES do fetch para garantir consistência mesmo se a API externa falhar.
+    // Limpeza prévia para The Odds API (filtra por competition label).
     if (activeLabels.length > 0) {
       const { data: outOfScope } = await admin
         .from("games")
         .select("id")
-        .eq("provider", provider.name)
-        .not("competition", "in", `(${activeLabels.map((l) => `"${l.replace(/"/g, '\\"')}"`).join(",")})`);
+        .eq("provider", providerName)
+        .not(
+          "competition",
+          "in",
+          `(${activeLabels.map((l) => `"${l.replace(/"/g, '\\"')}"`).join(",")})`,
+        );
       const dropIds = (outOfScope ?? []).map((r) => r.id as string);
       if (dropIds.length > 0) {
         await admin.from("game_odds").delete().in("game_id", dropIds);
@@ -61,18 +128,18 @@ export async function runSync(): Promise<SyncResult> {
       }
     }
 
-    const games = await provider.fetchUpcomingGames(selectedSports);
-    // Para cada jogo, upsert em games (por provider+external_id), depois substitui odds e reference.
+    const games = await provider.fetchUpcomingGames();
+
     for (const g of games) {
       const { data: existing } = await admin
         .from("games")
         .select("id")
-        .eq("provider", provider.name)
+        .eq("provider", providerName)
         .eq("external_id", g.id)
         .maybeSingle();
 
       const payload = {
-        provider: provider.name,
+        provider: providerName,
         external_id: g.id,
         competition: g.competition,
         round: g.round,
@@ -103,7 +170,6 @@ export async function runSync(): Promise<SyncResult> {
         inserted++;
       }
 
-      // Substitui odds (delete + insert)
       await admin.from("game_odds").delete().eq("game_id", gameId);
       if (g.books.length > 0) {
         const rows = g.books.flatMap((b) => [
@@ -116,7 +182,6 @@ export async function runSync(): Promise<SyncResult> {
         oddsInserted += rows.length;
       }
 
-      // Upsert da referência
       if (g.reference) {
         await admin.from("game_reference").upsert(
           {
@@ -132,13 +197,12 @@ export async function runSync(): Promise<SyncResult> {
       }
     }
 
-    // Limpa jogos antigos que não pertencem mais aos campeonatos selecionados.
-    // Mantém apenas os external_ids retornados nesta sincronização.
+    // Limpa jogos antigos deste provider que saíram da lista.
     const keepIds = new Set(games.map((g) => g.id));
     const { data: allRows } = await admin
       .from("games")
       .select("id, external_id")
-      .eq("provider", provider.name);
+      .eq("provider", providerName);
     const staleIds = (allRows ?? [])
       .filter((r) => !keepIds.has(r.external_id as string))
       .map((r) => r.id as string);
@@ -149,17 +213,14 @@ export async function runSync(): Promise<SyncResult> {
     }
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
-    console.error("[runSync] erro:", error);
+    console.error(`[runSync ${providerName}] erro:`, error);
   }
 
   const finishedAt = new Date();
-  const durationMs = finishedAt.getTime() - startedAt.getTime();
-
-  // Registra auditoria
   await admin.from("sync_runs").insert({
     started_at: startedAt.toISOString(),
     finished_at: finishedAt.toISOString(),
-    provider: provider.name,
+    provider: providerName,
     games_inserted: inserted,
     games_updated: updated,
     odds_inserted: oddsInserted,
@@ -168,11 +229,11 @@ export async function runSync(): Promise<SyncResult> {
 
   return {
     ok: !error,
-    provider: provider.name,
+    provider: providerName,
     gamesInserted: inserted,
     gamesUpdated: updated,
     oddsInserted,
-    durationMs,
+    durationMs: finishedAt.getTime() - startedAt.getTime(),
     error,
   };
 }
@@ -188,32 +249,106 @@ export async function verifyAdminFromToken(token: string): Promise<boolean> {
   return Boolean(roles?.some((r) => r.role === "admin"));
 }
 
-async function getSelectedSports(
-  admin: ReturnType<typeof getAdmin>,
-): Promise<string[] | undefined> {
+// ---------- app_settings helpers ----------
+
+async function getJsonSetting<T>(admin: Admin, key: string): Promise<T | null> {
   const { data } = await admin
     .from("app_settings")
     .select("value")
-    .eq("key", "selected_sports")
+    .eq("key", key)
     .maybeSingle();
-  const value = (data?.value ?? null) as { sports?: string[] } | null;
-  if (value && Array.isArray(value.sports) && value.sports.length > 0) {
-    return value.sports;
-  }
-  return undefined;
+  return (data?.value ?? null) as T | null;
 }
+
+async function setJsonSetting(admin: Admin, key: string, value: unknown): Promise<void> {
+  const { error } = await admin
+    .from("app_settings")
+    .upsert({ key, value }, { onConflict: "key" });
+  if (error) throw new Error(error.message);
+}
+
+export type ProvidersEnabled = Record<ProviderName, boolean>;
+
+const DEFAULT_PROVIDERS_ENABLED: ProvidersEnabled = {
+  "the-odds-api": true,
+  oddspapi: false,
+};
+
+async function getProvidersEnabled(admin: Admin): Promise<ProvidersEnabled> {
+  const stored = await getJsonSetting<Partial<ProvidersEnabled>>(admin, "providers_enabled");
+  return { ...DEFAULT_PROVIDERS_ENABLED, ...(stored ?? {}) };
+}
+
+// API pública usada pelos endpoints admin -------------------------------------
 
 export async function getSelectedSportsAdmin(): Promise<string[]> {
   const admin = getAdmin();
-  const list = await getSelectedSports(admin);
-  return list ?? [];
+  const v = await getJsonSetting<{ sports: string[] }>(admin, "selected_sports");
+  return v?.sports ?? [];
 }
 
 export async function setSelectedSportsAdmin(sports: string[]): Promise<void> {
+  await setJsonSetting(getAdmin(), "selected_sports", { sports });
+}
+
+export async function getProvidersEnabledAdmin(): Promise<ProvidersEnabled> {
+  return getProvidersEnabled(getAdmin());
+}
+
+export async function setProvidersEnabledAdmin(
+  next: Partial<ProvidersEnabled>,
+): Promise<ProvidersEnabled> {
   const admin = getAdmin();
-  const { error } = await admin.from("app_settings").upsert(
-    { key: "selected_sports", value: { sports } },
-    { onConflict: "key" },
-  );
-  if (error) throw new Error(error.message);
+  const current = await getProvidersEnabled(admin);
+  const merged = { ...current, ...next };
+  await setJsonSetting(admin, "providers_enabled", merged);
+  return merged;
+}
+
+export async function getOddsPapiSettingsAdmin(): Promise<{
+  tournaments: string[];
+  bookmakers: string[];
+}> {
+  const admin = getAdmin();
+  const t = await getJsonSetting<{ tournaments: string[] }>(admin, "oddspapi_tournaments");
+  const b = await getJsonSetting<{ bookmakers: string[] }>(admin, "oddspapi_bookmakers");
+  return {
+    tournaments: t?.tournaments ?? [],
+    bookmakers: b?.bookmakers ?? [],
+  };
+}
+
+export async function setOddsPapiSettingsAdmin(opts: {
+  tournaments?: string[];
+  bookmakers?: string[];
+}): Promise<void> {
+  const admin = getAdmin();
+  if (opts.tournaments) {
+    await setJsonSetting(admin, "oddspapi_tournaments", { tournaments: opts.tournaments });
+  }
+  if (opts.bookmakers) {
+    await setJsonSetting(admin, "oddspapi_bookmakers", { bookmakers: opts.bookmakers });
+  }
+}
+
+export interface ProviderStatus {
+  name: ProviderName;
+  enabled: boolean;
+  keyConfigured: boolean;
+}
+
+export async function getProvidersStatusAdmin(): Promise<ProviderStatus[]> {
+  const enabled = await getProvidersEnabled(getAdmin());
+  return [
+    {
+      name: "the-odds-api",
+      enabled: enabled["the-odds-api"],
+      keyConfigured: Boolean(process.env.THE_ODDS_API_KEY),
+    },
+    {
+      name: "oddspapi",
+      enabled: enabled.oddspapi,
+      keyConfigured: Boolean(process.env.ODDSPAPI_API_KEY),
+    },
+  ];
 }
