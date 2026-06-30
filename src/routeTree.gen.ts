@@ -24,6 +24,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
 import { Route as ApiAdminSyncSettingsRouteImport } from './routes/api/admin/sync-settings'
 import { Route as ApiAdminSyncRouteImport } from './routes/api/admin/sync'
+import { Route as ApiAdminOddspapiTournamentsRouteImport } from './routes/api/admin/oddspapi-tournaments'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 import { Route as AuthenticatedAdminSincronizacaoRouteImport } from './routes/_authenticated/admin.sincronizacao'
 
@@ -101,6 +102,12 @@ const ApiAdminSyncRoute = ApiAdminSyncRouteImport.update({
   path: '/api/admin/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminOddspapiTournamentsRoute =
+  ApiAdminOddspapiTournamentsRouteImport.update({
+    id: '/api/admin/oddspapi-tournaments',
+    path: '/api/admin/oddspapi-tournaments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedJogosIdRoute = AuthenticatedJogosIdRouteImport.update({
   id: '/jogos/$id',
   path: '/jogos/$id',
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/auth/entrar': typeof AuthEntrarRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/oddspapi-tournaments': typeof ApiAdminOddspapiTournamentsRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
   '/api/admin/sync-settings': typeof ApiAdminSyncSettingsRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -145,6 +153,7 @@ export interface FileRoutesByTo {
   '/auth/entrar': typeof AuthEntrarRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/oddspapi-tournaments': typeof ApiAdminOddspapiTournamentsRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
   '/api/admin/sync-settings': typeof ApiAdminSyncSettingsRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -165,6 +174,7 @@ export interface FileRoutesById {
   '/auth/entrar': typeof AuthEntrarRoute
   '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/oddspapi-tournaments': typeof ApiAdminOddspapiTournamentsRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
   '/api/admin/sync-settings': typeof ApiAdminSyncSettingsRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/auth/entrar'
     | '/admin/sincronizacao'
     | '/jogos/$id'
+    | '/api/admin/oddspapi-tournaments'
     | '/api/admin/sync'
     | '/api/admin/sync-settings'
     | '/api/public/sync'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/auth/entrar'
     | '/admin/sincronizacao'
     | '/jogos/$id'
+    | '/api/admin/oddspapi-tournaments'
     | '/api/admin/sync'
     | '/api/admin/sync-settings'
     | '/api/public/sync'
@@ -222,6 +234,7 @@ export interface FileRouteTypes {
     | '/auth/entrar'
     | '/_authenticated/admin/sincronizacao'
     | '/_authenticated/jogos/$id'
+    | '/api/admin/oddspapi-tournaments'
     | '/api/admin/sync'
     | '/api/admin/sync-settings'
     | '/api/public/sync'
@@ -235,6 +248,7 @@ export interface RootRouteChildren {
   MetodologiaRoute: typeof MetodologiaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
+  ApiAdminOddspapiTournamentsRoute: typeof ApiAdminOddspapiTournamentsRoute
   ApiAdminSyncRoute: typeof ApiAdminSyncRoute
   ApiAdminSyncSettingsRoute: typeof ApiAdminSyncSettingsRoute
   ApiPublicSyncRoute: typeof ApiPublicSyncRoute
@@ -347,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/oddspapi-tournaments': {
+      id: '/api/admin/oddspapi-tournaments'
+      path: '/api/admin/oddspapi-tournaments'
+      fullPath: '/api/admin/oddspapi-tournaments'
+      preLoaderRoute: typeof ApiAdminOddspapiTournamentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/jogos/$id': {
       id: '/_authenticated/jogos/$id'
       path: '/jogos/$id'
@@ -403,6 +424,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetodologiaRoute: MetodologiaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
+  ApiAdminOddspapiTournamentsRoute: ApiAdminOddspapiTournamentsRoute,
   ApiAdminSyncRoute: ApiAdminSyncRoute,
   ApiAdminSyncSettingsRoute: ApiAdminSyncSettingsRoute,
   ApiPublicSyncRoute: ApiPublicSyncRoute,

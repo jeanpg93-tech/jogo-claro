@@ -421,6 +421,10 @@ function OddsPapiSelector() {
         </Button>
       </div>
 
+      <LiveTournamentsList />
+
+
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border/60 p-3">
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -485,6 +489,124 @@ function OddsPapiSelector() {
     </section>
   );
 }
+
+interface LiveTournament {
+  tournamentId: number;
+  tournamentSlug: string;
+  tournamentName: string;
+  categoryName?: string;
+  futureFixtures?: number;
+}
+
+function LiveTournamentsList() {
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<LiveTournament[] | null>(null);
+  const [filter, setFilter] = useState("");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Sessão expirada.");
+      const res = await fetch("/api/admin/oddspapi-tournaments", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? `Erro ${res.status}: ${JSON.stringify(json).slice(0, 200)}`);
+      }
+      setItems(json.tournaments as LiveTournament[]);
+      toast.success(`${json.count} torneios carregados.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao listar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filtered = useMemo(() => {
+    if (!items) return [];
+    const q = filter.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (t) =>
+        t.tournamentSlug.toLowerCase().includes(q) ||
+        t.tournamentName.toLowerCase().includes(q) ||
+        (t.categoryName ?? "").toLowerCase().includes(q),
+    );
+  }, [items, filter]);
+
+  return (
+    <div className="mt-4 rounded-lg border border-dashed border-border/60 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-medium">Torneios disponíveis na OddsPapi (ao vivo)</div>
+          <div className="text-[11px] text-muted-foreground">
+            Use esta lista para descobrir o slug correto e adicionar manualmente
+            acima (ou me enviar para eu incluir no catálogo).
+          </div>
+        </div>
+        <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+          {loading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Listar torneios
+        </Button>
+      </div>
+      {items && (
+        <>
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filtrar por nome ou país (ex.: world, brasil, copa)"
+            className="mt-3 w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-sm"
+          />
+          <div className="mt-2 max-h-72 overflow-y-auto rounded-md border border-border/40">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-card text-[10px] uppercase tracking-widest text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-1 text-left">Nome</th>
+                  <th className="px-2 py-1 text-left">País</th>
+                  <th className="px-2 py-1 text-left">Slug</th>
+                  <th className="px-2 py-1 text-right">Jogos futuros</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((t) => (
+                  <tr key={t.tournamentId} className="border-t border-border/30">
+                    <td className="px-2 py-1">{t.tournamentName}</td>
+                    <td className="px-2 py-1 text-muted-foreground">
+                      {t.categoryName ?? "—"}
+                    </td>
+                    <td className="px-2 py-1">
+                      <code className="text-[10px]">{t.tournamentSlug}</code>
+                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums">
+                      {t.futureFixtures ?? 0}
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-2 py-3 text-center text-muted-foreground">
+                      Nenhum torneio bate com o filtro.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
 
 function SportsSelector() {
   const [loading, setLoading] = useState(true);
