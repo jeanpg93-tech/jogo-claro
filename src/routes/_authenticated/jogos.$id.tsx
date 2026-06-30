@@ -6,6 +6,7 @@ import {
   getDemoGame,
   impliedProb,
   RULES,
+  type DemoGame,
 } from "@/lib/demo-games";
 
 export const Route = createFileRoute("/_authenticated/jogos/$id")({
