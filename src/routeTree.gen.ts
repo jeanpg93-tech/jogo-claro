@@ -9,38 +9,173 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermosRouteImport } from './routes/termos'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as JogoResponsavelRouteImport } from './routes/jogo-responsavel'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthEntrarRouteImport } from './routes/auth.entrar'
+import { Route as AuthCadastroRouteImport } from './routes/auth.cadastro'
+import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JogoResponsavelRoute = JogoResponsavelRouteImport.update({
+  id: '/jogo-responsavel',
+  path: '/jogo-responsavel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthEntrarRoute = AuthEntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCadastroRoute = AuthCadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/jogo-responsavel': typeof JogoResponsavelRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/termos': typeof TermosRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
+  '/auth/cadastro': typeof AuthCadastroRoute
+  '/auth/entrar': typeof AuthEntrarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/jogo-responsavel': typeof JogoResponsavelRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/termos': typeof TermosRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
+  '/auth/cadastro': typeof AuthCadastroRoute
+  '/auth/entrar': typeof AuthEntrarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRouteWithChildren
+  '/jogo-responsavel': typeof JogoResponsavelRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/termos': typeof TermosRoute
+  '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/auth/cadastro': typeof AuthCadastroRoute
+  '/auth/entrar': typeof AuthEntrarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/jogo-responsavel'
+    | '/privacidade'
+    | '/termos'
+    | '/perfil'
+    | '/auth/cadastro'
+    | '/auth/entrar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/jogo-responsavel'
+    | '/privacidade'
+    | '/termos'
+    | '/perfil'
+    | '/auth/cadastro'
+    | '/auth/entrar'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/jogo-responsavel'
+    | '/privacidade'
+    | '/termos'
+    | '/_authenticated/perfil'
+    | '/auth/cadastro'
+    | '/auth/entrar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRouteWithChildren
+  JogoResponsavelRoute: typeof JogoResponsavelRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
+  TermosRoute: typeof TermosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jogo-responsavel': {
+      id: '/jogo-responsavel'
+      path: '/jogo-responsavel'
+      fullPath: '/jogo-responsavel'
+      preLoaderRoute: typeof JogoResponsavelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +183,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/entrar': {
+      id: '/auth/entrar'
+      path: '/entrar'
+      fullPath: '/auth/entrar'
+      preLoaderRoute: typeof AuthEntrarRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/cadastro': {
+      id: '/auth/cadastro'
+      path: '/cadastro'
+      fullPath: '/auth/cadastro'
+      preLoaderRoute: typeof AuthCadastroRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_authenticated/perfil': {
+      id: '/_authenticated/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthenticatedPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+interface AuthRouteChildren {
+  AuthCadastroRoute: typeof AuthCadastroRoute
+  AuthEntrarRoute: typeof AuthEntrarRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCadastroRoute: AuthCadastroRoute,
+  AuthEntrarRoute: AuthEntrarRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRouteWithChildren,
+  JogoResponsavelRoute: JogoResponsavelRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
+  TermosRoute: TermosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
