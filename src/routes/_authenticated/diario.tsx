@@ -240,6 +240,8 @@ function DiarioPage() {
         </div>
       </form>
 
+      <JournalStats entries={entries} />
+
       <h2 className="mt-10 text-lg font-semibold tracking-tight">Histórico</h2>
       <p className="text-xs text-muted-foreground">
         Apenas você consegue ver e gerenciar seus registros.
