@@ -98,8 +98,8 @@ export function createTheOddsApiProvider(): OddsProvider {
             id: ev.id, // será external_id no banco
             competition: ptLabel(ev.sport_key, ev.sport_title),
             round: "—",
-            home: ev.home_team,
-            away: ev.away_team,
+            home: ptTeam(ev.home_team),
+            away: ptTeam(ev.away_team),
             kickoff: ev.commence_time,
             updatedAt: latestUpdate,
             reference,
