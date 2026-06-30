@@ -469,15 +469,15 @@ function OddsPapiSelector() {
   if (!enabled) return null;
 
   return (
-    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">OddsPapi — torneios e casas</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Selecione os torneios e as casas que serão buscados na OddsPapi.
-            Casas BR aparecem com destaque.
-          </p>
-        </div>
+    <CollapsibleSection
+      title="OddsPapi — torneios e casas"
+      badge={
+        <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-sky-300">
+          Provedor: OddsPapi
+        </span>
+      }
+      subtitle="Selecione os torneios e as casas que serão buscados na OddsPapi. Casas BR aparecem com destaque."
+      actions={
         <Button size="sm" onClick={save} disabled={saving}>
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -486,11 +486,9 @@ function OddsPapiSelector() {
           )}
           Salvar
         </Button>
-      </div>
-
+      }
+    >
       <LiveTournamentsList />
-
-
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border/60 p-3">
@@ -553,7 +551,7 @@ function OddsPapiSelector() {
           </div>
         </div>
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }
 
