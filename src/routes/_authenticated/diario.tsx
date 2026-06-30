@@ -247,13 +247,81 @@ function DiarioPage() {
         Apenas você consegue ver e gerenciar seus registros.
       </p>
 
-      <div className="mt-4 grid gap-3">
+      <JournalFilters
+        all={entries ?? []}
+        loading={loading}
+        onRemove={remove}
+      />
+    </div>
+  );
+}
+
+function JournalFilters({
+  all,
+  loading,
+  onRemove,
+}: {
+  all: JournalEntry[];
+  loading: boolean;
+  onRemove: (id: string) => void;
+}) {
+  const [fDecision, setFDecision] = useState<"all" | Decision>("all");
+  const [fSide, setFSide] = useState<"all" | Side>("all");
+  const [query, setQuery] = useState("");
+
+  const filtered = all.filter((e) => {
+    if (fDecision !== "all" && e.decision !== fDecision) return false;
+    if (fSide !== "all" && e.side !== fSide) return false;
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      const hay = `${e.home ?? ""} ${e.away ?? ""} ${e.competition ?? ""} ${e.notes ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  return (
+    <>
+      <div className="mt-4 grid gap-2 rounded-lg border border-border/60 bg-card p-3 md:grid-cols-[1fr_auto_auto]">
+        <Input
+          placeholder="Buscar por time, competição ou nota…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <Select value={fDecision} onValueChange={(v) => setFDecision(v as typeof fDecision)}>
+          <SelectTrigger className="md:w-48">
+            <SelectValue placeholder="Decisão" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as decisões</SelectItem>
+            <SelectItem value="observar">Vou observar</SelectItem>
+            <SelectItem value="passar">Passei deste jogo</SelectItem>
+            <SelectItem value="registrar">Registrei minha análise</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={fSide} onValueChange={(v) => setFSide(v as typeof fSide)}>
+          <SelectTrigger className="md:w-40">
+            <SelectValue placeholder="Lado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os lados</SelectItem>
+            <SelectItem value="home">Mandante</SelectItem>
+            <SelectItem value="draw">Empate</SelectItem>
+            <SelectItem value="away">Visitante</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Mostrando {filtered.length} de {all.length} registro(s).
+      </p>
+
+      <div className="mt-3 grid gap-3">
         {loading && (
           <div className="flex items-center justify-center rounded-lg border border-border/60 bg-card p-6 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando...
           </div>
         )}
-        {!loading && entries && entries.length === 0 && (
+        {!loading && all.length === 0 && (
           <div className="rounded-lg border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
             Nenhum registro ainda. Comece pelo{" "}
             <Link to="/dashboard" className="text-primary hover:underline">
@@ -262,7 +330,12 @@ function DiarioPage() {
             .
           </div>
         )}
-        {entries?.map((e) => (
+        {!loading && all.length > 0 && filtered.length === 0 && (
+          <div className="rounded-lg border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
+            Nenhum registro corresponde aos filtros.
+          </div>
+        )}
+        {filtered.map((e) => (
           <article
             key={e.id}
             className="rounded-xl border border-border/60 bg-card p-4"
@@ -293,7 +366,7 @@ function DiarioPage() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => remove(e.id)}
+                  onClick={() => onRemove(e.id)}
                   title="Excluir registro"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -308,9 +381,10 @@ function DiarioPage() {
           </article>
         ))}
       </div>
-    </div>
+    </>
   );
 }
+
 
 function JournalStats({ entries }: { entries: JournalEntry[] | null }) {
   if (!entries || entries.length === 0) return null;

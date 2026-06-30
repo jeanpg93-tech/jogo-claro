@@ -372,9 +372,24 @@ jobs:
       <div className="rounded-xl border border-border/60 bg-card p-4 text-sm">
         <h3 className="text-base font-semibold">Cron externo (recomendado)</h3>
         <p className="mt-1 text-muted-foreground">
-          Frequência sugerida: <strong className="text-foreground">2x ao dia</strong>{" "}
-          (≈60 chamadas/mês) — confortável dentro do plano Free de 500 créditos da
-          The Odds API.
+          Casas abrem odds em momentos diferentes — quanto mais perto do
+          kickoff, mais casas cotam. Cadência sugerida em duas faixas para
+          capturar melhor a abertura sem estourar o plano Free (500/mês):
+        </p>
+        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <li>
+            <strong className="text-foreground">Janela ampla:</strong> 2x/dia
+            (08:00 e 20:00 BRT) → ~60 chamadas/mês. Cobre a abertura geral.
+          </li>
+          <li>
+            <strong className="text-foreground">Janela densa (dias de jogo):</strong>{" "}
+            até 4x/dia em dias com jogos selecionados → ~120 chamadas/mês.
+            Captura mais casas conforme o kickoff se aproxima.
+          </li>
+        </ul>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Use a janela ampla agora; suba para densa nos dias de rodada da Copa.
+          Total estimado combinado: &lt; 200 chamadas/mês.
         </p>
         <div className="mt-3 space-y-2">
           <div>
