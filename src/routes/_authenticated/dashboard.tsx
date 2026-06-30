@@ -9,7 +9,15 @@ import {
 import { useGames } from "@/lib/games-data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useRole } from "@/hooks/use-role";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Painel — Visão de Jogo" }] }),
@@ -24,19 +32,30 @@ const FILTERS: { value: "todos" | GameStatus; label: string }[] = [
   { value: "sem_cobertura", label: "Sem cobertura" },
 ];
 
+const ALL_COMPETITIONS = "__all__";
+
+
 function DashboardPage() {
   const { effectiveIsAdmin, isAdmin, viewMode } = useRole();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("todos");
   const [query, setQuery] = useState("");
+  const [competition, setCompetition] = useState<string>(ALL_COMPETITIONS);
 
   const { data, isLoading } = useGames();
   const games = data?.games ?? [];
   const usingDemo = data?.usingDemo ?? true;
   const lastSync = data?.lastSync ?? null;
 
+  const competitions = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of games) set.add(g.competition);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [games]);
+
   const items = useMemo(() => {
     return games.map((g) => ({ g, c: classifyGame(g) })).filter(({ g, c }) => {
       if (filter !== "todos" && c.status !== filter) return false;
+      if (competition !== ALL_COMPETITIONS && g.competition !== competition) return false;
       if (!query) return true;
       const q = query.toLowerCase();
       return (
@@ -45,7 +64,8 @@ function DashboardPage() {
         g.competition.toLowerCase().includes(q)
       );
     });
-  }, [filter, query, games]);
+  }, [filter, query, competition, games]);
+
 
   const counts = useMemo(() => {
     const acc: Record<GameStatus, number> = {
@@ -129,6 +149,19 @@ function DashboardPage() {
             className="pl-9"
           />
         </div>
+        <Select value={competition} onValueChange={setCompetition}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Competição" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_COMPETITIONS}>Todas as competições</SelectItem>
+            {competitions.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex items-center gap-1 overflow-x-auto">
           <Filter className="mr-1 h-4 w-4 text-muted-foreground" />
           {FILTERS.map((f) => (

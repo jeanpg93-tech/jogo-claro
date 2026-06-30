@@ -240,6 +240,8 @@ function DiarioPage() {
         </div>
       </form>
 
+      <JournalStats entries={entries} />
+
       <h2 className="mt-10 text-lg font-semibold tracking-tight">Histórico</h2>
       <p className="text-xs text-muted-foreground">
         Apenas você consegue ver e gerenciar seus registros.
@@ -309,3 +311,84 @@ function DiarioPage() {
     </div>
   );
 }
+
+function JournalStats({ entries }: { entries: JournalEntry[] | null }) {
+  if (!entries || entries.length === 0) return null;
+  const total = entries.length;
+  const byDecision: Record<Decision, number> = { registrar: 0, passar: 0, observar: 0 };
+  const byStatus: Record<string, number> = {};
+  const bySide: Record<Side, number> = { home: 0, draw: 0, away: 0 };
+  let confidenceSum = 0;
+  for (const e of entries) {
+    byDecision[e.decision]++;
+    bySide[e.side]++;
+    confidenceSum += e.confidence;
+    const s = e.status_at_decision ?? "—";
+    byStatus[s] = (byStatus[s] ?? 0) + 1;
+  }
+  const avgConf = (confidenceSum / total).toFixed(1);
+
+  const Tile = ({ label, value, hint }: { label: string; value: string | number; hint?: string }) => (
+    <div className="rounded-lg border border-border/60 bg-card p-3">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
+      {hint && <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
+    </div>
+  );
+
+  return (
+    <section className="mt-10">
+      <h2 className="text-lg font-semibold tracking-tight">Estatísticas do diário</h2>
+      <p className="text-xs text-muted-foreground">
+        Resumo objetivo do seu próprio histórico. Sem previsões, sem promessas.
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Tile label="Total de registros" value={total} />
+        <Tile label="Confiança média" value={`${avgConf}/5`} />
+        <Tile
+          label="Registrei análise"
+          value={byDecision.registrar}
+          hint={`${Math.round((byDecision.registrar / total) * 100)}% das entradas`}
+        />
+        <Tile
+          label="Passei do jogo"
+          value={byDecision.passar}
+          hint={`${Math.round((byDecision.passar / total) * 100)}% das entradas`}
+        />
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div className="rounded-lg border border-border/60 bg-card p-4">
+          <div className="text-xs font-medium text-muted-foreground">Distribuição por lado</div>
+          <div className="mt-2 space-y-1.5 text-sm">
+            {(["home", "draw", "away"] as Side[]).map((s) => (
+              <div key={s} className="flex items-center justify-between">
+                <span>{SIDE_LABEL[s]}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {bySide[s]} · {Math.round((bySide[s] / total) * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-card p-4">
+          <div className="text-xs font-medium text-muted-foreground">
+            Status no momento da decisão
+          </div>
+          <div className="mt-2 space-y-1.5 text-sm">
+            {Object.entries(byStatus).map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between">
+                <span>
+                  {STATUS_META[k as keyof typeof STATUS_META]?.label ?? k}
+                </span>
+                <span className="tabular-nums text-muted-foreground">
+                  {v} · {Math.round((v / total) * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+

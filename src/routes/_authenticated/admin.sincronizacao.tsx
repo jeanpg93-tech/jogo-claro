@@ -171,12 +171,97 @@ function AdminSyncPage() {
         })}
       </div>
 
-      <div className="mt-6 rounded-xl border border-border/60 bg-card p-4 text-sm text-muted-foreground">
-        <strong className="text-foreground">Para configurar cron externo:</strong>{" "}
-        chame <code className="rounded bg-muted px-1.5 py-0.5 text-xs">POST /api/public/sync</code>{" "}
-        com o header <code className="rounded bg-muted px-1.5 py-0.5 text-xs">x-sync-secret</code>{" "}
-        contendo o valor do segredo <code className="text-xs">SYNC_SECRET</code>.
-      </div>
+      <CronDocs />
     </div>
   );
 }
+
+function CronDocs() {
+  const url =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/public/sync`
+      : "/api/public/sync";
+  const ghYaml = `name: Sync Visão de Jogo
+on:
+  schedule:
+    - cron: "0 11,23 * * *"   # 08:00 e 20:00 BRT
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/public/sync
+        run: |
+          curl -fsS -X POST "${url}" \\
+            -H "x-sync-secret: \${{ secrets.SYNC_SECRET }}"`;
+  return (
+    <section className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="rounded-xl border border-border/60 bg-card p-4 text-sm">
+        <h3 className="text-base font-semibold">Cron externo (recomendado)</h3>
+        <p className="mt-1 text-muted-foreground">
+          Frequência sugerida: <strong className="text-foreground">2x ao dia</strong>{" "}
+          (≈60 chamadas/mês) — confortável dentro do plano Free de 500 créditos da
+          The Odds API.
+        </p>
+        <div className="mt-3 space-y-2">
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              Endpoint
+            </div>
+            <code className="mt-1 block break-all rounded bg-muted px-2 py-1.5 text-xs">
+              POST {url}
+            </code>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              Header de segurança
+            </div>
+            <code className="mt-1 block rounded bg-muted px-2 py-1.5 text-xs">
+              x-sync-secret: &lt;valor do segredo SYNC_SECRET&gt;
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-card p-4 text-sm">
+        <h3 className="text-base font-semibold">Exemplo: cron-job.org (grátis)</h3>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+          <li>Crie uma conta em cron-job.org.</li>
+          <li>
+            Novo job → URL acima, método <strong>POST</strong>.
+          </li>
+          <li>
+            Em <em>Advanced → Headers</em>, adicione{" "}
+            <code className="rounded bg-muted px-1">x-sync-secret</code> com o valor
+            do segredo.
+          </li>
+          <li>
+            Agendamento: ex.: <code className="rounded bg-muted px-1">08:00</code> e{" "}
+            <code className="rounded bg-muted px-1">20:00</code> diariamente.
+          </li>
+          <li>O histórico aparecerá nesta tela após cada execução.</li>
+        </ol>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-card p-4 text-sm md:col-span-2">
+        <h3 className="text-base font-semibold">Alternativa: GitHub Actions</h3>
+        <p className="mt-1 text-muted-foreground">
+          Salve em{" "}
+          <code className="rounded bg-muted px-1">.github/workflows/sync.yml</code>{" "}
+          no seu repositório e configure o secret <code>SYNC_SECRET</code>.
+        </p>
+        <pre className="mt-3 overflow-x-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">
+          {ghYaml}
+        </pre>
+      </div>
+
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200 md:col-span-2">
+        <strong>Atenção ao consumo:</strong> cada execução faz 1 chamada à The Odds
+        API (1 crédito). Somente o mercado 1X2 e a região configurada são
+        consultados. O cron em si não consome créditos — apenas as chamadas
+        externas.
+      </div>
+    </section>
+  );
+}
+
