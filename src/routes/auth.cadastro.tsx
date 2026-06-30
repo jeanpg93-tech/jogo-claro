@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -159,7 +160,13 @@ function CadastroPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Criando conta..." : "Criar conta"}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Criando conta…
+              </span>
+            ) : (
+              "Criar conta"
+            )}
           </Button>
         </form>
 

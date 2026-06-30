@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,7 @@ function EntrarPage() {
       return;
     }
     toast.success("Bem-vindo de volta.");
-    navigate({ to: "/perfil" });
+    navigate({ to: "/dashboard" });
   }
 
   return (
@@ -71,7 +72,13 @@ function EntrarPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Entrando..." : "Entrar"}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Entrando…
+              </span>
+            ) : (
+              "Entrar"
+            )}
           </Button>
         </form>
 

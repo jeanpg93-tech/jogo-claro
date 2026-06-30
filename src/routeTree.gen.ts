@@ -18,6 +18,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthEntrarRouteImport } from './routes/auth.entrar'
 import { Route as AuthCadastroRouteImport } from './routes/auth.cadastro'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -63,6 +65,16 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedJogosIdRoute = AuthenticatedJogosIdRouteImport.update({
+  id: '/jogos/$id',
+  path: '/jogos/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -70,9 +82,11 @@ export interface FileRoutesByFullPath {
   '/jogo-responsavel': typeof JogoResponsavelRoute
   '/privacidade': typeof PrivacidadeRoute
   '/termos': typeof TermosRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/jogos/$id': typeof AuthenticatedJogosIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -80,9 +94,11 @@ export interface FileRoutesByTo {
   '/jogo-responsavel': typeof JogoResponsavelRoute
   '/privacidade': typeof PrivacidadeRoute
   '/termos': typeof TermosRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/jogos/$id': typeof AuthenticatedJogosIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -92,9 +108,11 @@ export interface FileRoutesById {
   '/jogo-responsavel': typeof JogoResponsavelRoute
   '/privacidade': typeof PrivacidadeRoute
   '/termos': typeof TermosRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -104,9 +122,11 @@ export interface FileRouteTypes {
     | '/jogo-responsavel'
     | '/privacidade'
     | '/termos'
+    | '/dashboard'
     | '/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/jogos/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -114,9 +134,11 @@ export interface FileRouteTypes {
     | '/jogo-responsavel'
     | '/privacidade'
     | '/termos'
+    | '/dashboard'
     | '/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/jogos/$id'
   id:
     | '__root__'
     | '/'
@@ -125,9 +147,11 @@ export interface FileRouteTypes {
     | '/jogo-responsavel'
     | '/privacidade'
     | '/termos'
+    | '/_authenticated/dashboard'
     | '/_authenticated/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/_authenticated/jogos/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -204,15 +228,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/jogos/$id': {
+      id: '/_authenticated/jogos/$id'
+      path: '/jogos/$id'
+      fullPath: '/jogos/$id'
+      preLoaderRoute: typeof AuthenticatedJogosIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedJogosIdRoute: typeof AuthenticatedJogosIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedJogosIdRoute: AuthenticatedJogosIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -241,13 +283,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
