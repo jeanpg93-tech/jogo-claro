@@ -37,9 +37,10 @@ function PerfilPage() {
     terms_accepted_at?: string;
   };
 
-  const competitions = useMemo(
-    () => Array.from(new Set(DEMO_GAMES.map((g) => g.competition))).sort(),
-    [],
+  const { data: gamesData } = useGames();
+  const competitions = useMemo<string[]>(
+    () => Array.from(new Set((gamesData?.games ?? []).map((g) => g.competition))).sort(),
+    [gamesData],
   );
 
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
