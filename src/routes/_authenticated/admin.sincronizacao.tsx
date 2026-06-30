@@ -252,11 +252,14 @@ jobs:
             </code>
           </div>
           <div>
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
-              Header de segurança
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Header de segurança
+              </div>
+              <CopyButton value={headerLine} label="header" />
             </div>
             <code className="mt-1 block rounded bg-muted px-2 py-1.5 text-xs">
-              x-sync-secret: &lt;valor do segredo SYNC_SECRET&gt;
+              {headerLine}
             </code>
           </div>
         </div>
