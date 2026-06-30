@@ -141,7 +141,7 @@ function GameDetail({ game }: { game: Game }) {
 
           <section className="rounded-xl border border-border/60 bg-background/30 p-4">
             <h2 className="text-sm font-semibold tracking-tight">
-              Odds disponíveis
+              Odds por casa
             </h2>
             {game.books.length === 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">
@@ -149,30 +149,58 @@ function GameDetail({ game }: { game: Game }) {
               </p>
             ) : (
               <div className="mt-3 overflow-x-auto">
+                <p className="mb-2 text-[11px] text-muted-foreground">
+                  Selecione a casa e o lado que você quer considerar na sua análise.
+                </p>
                 <table className="w-full text-sm">
                   <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="px-1 py-1 text-left">Fonte</th>
-                      <th className="px-1 py-1 text-right">M</th>
-                      <th className="px-1 py-1 text-right">E</th>
-                      <th className="px-1 py-1 text-right">V</th>
+                      <th className="px-1 py-1 text-left">Casa</th>
+                      <th className="px-1 py-1 text-right">Mandante</th>
+                      <th className="px-1 py-1 text-right">Empate</th>
+                      <th className="px-1 py-1 text-right">Visitante</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {game.books.map((b) => (
-                      <tr key={b.book} className="border-t border-border/40">
-                        <td className="px-1 py-1.5">{b.book}</td>
-                        <td className="px-1 py-1.5 text-right tabular-nums">
-                          {b.home.toFixed(2)}
-                        </td>
-                        <td className="px-1 py-1.5 text-right tabular-nums">
-                          {b.draw.toFixed(2)}
-                        </td>
-                        <td className="px-1 py-1.5 text-right tabular-nums">
-                          {b.away.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {game.books.map((b) => {
+                      const isPicked = b.book === pickBook;
+                      return (
+                        <tr
+                          key={b.book}
+                          onClick={() => setPickBook(b.book)}
+                          className={`cursor-pointer border-t border-border/40 transition ${isPicked ? "bg-primary/10" : "hover:bg-background/60"}`}
+                        >
+                          <td className="px-1 py-1.5">
+                            <label className="flex cursor-pointer items-center gap-2">
+                              <input
+                                type="radio"
+                                name="pickBook"
+                                checked={isPicked}
+                                onChange={() => setPickBook(b.book)}
+                                className="accent-primary"
+                              />
+                              {b.book}
+                            </label>
+                          </td>
+                          {(["home", "draw", "away"] as Side[]).map((s) => {
+                            const selected = isPicked && pickSide === s;
+                            return (
+                              <td
+                                key={s}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPickBook(b.book);
+                                  setPickSide(s);
+                                }}
+                                className={`px-1 py-1.5 text-right tabular-nums ${selected ? "rounded bg-primary/30 font-semibold text-primary-foreground" : ""}`}
+                              >
+                                {b[s].toFixed(2)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 <p className="mt-2 text-[11px] text-muted-foreground">
@@ -183,33 +211,45 @@ function GameDetail({ game }: { game: Game }) {
           </section>
         </div>
 
-        {c.best && (
-          <div className="mt-6 rounded-xl border border-border/60 bg-background/30 p-4">
+        {pickedBook && pickedOdd && (
+          <div className="mt-6 rounded-xl border border-primary/40 bg-primary/5 p-4">
             <h2 className="text-sm font-semibold tracking-tight">
-              Comparativo com a referência
+              Sua seleção
             </h2>
-            <div className="mt-2 grid gap-2 text-sm md:grid-cols-3">
+            <div className="mt-2 grid gap-2 text-sm md:grid-cols-4">
+              <Stat label="Casa" value={pickedBook.book} />
+              <Stat label="Lado" value={SIDE_LABEL[pickSide]} />
+              <Stat label="Odd escolhida" value={pickedOdd.toFixed(2)} />
               <Stat
-                label="Lado destacado"
+                label="Diferença vs referência"
                 value={
-                  c.best.side === "home"
-                    ? "Mandante"
-                    : c.best.side === "draw"
-                      ? "Empate"
-                      : "Visitante"
+                  pickedEdgePp === null
+                    ? "—"
+                    : `${pickedEdgePp >= 0 ? "+" : ""}${pickedEdgePp.toFixed(1)} pp`
                 }
               />
-              <Stat label="Melhor odd disponível" value={c.best.odd.toFixed(2)} />
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Probabilidade implícita:{" "}
+              {(impliedProb(pickedOdd) * 100).toFixed(1)}%. Limiar de oportunidade
+              analítica: {RULES.EDGE_THRESHOLD_PCT} pp.
+            </p>
+          </div>
+        )}
+
+        {c.best && (
+          <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-4">
+            <h2 className="text-sm font-semibold tracking-tight">
+              Melhor odd do mercado (referência automática)
+            </h2>
+            <div className="mt-2 grid gap-2 text-sm md:grid-cols-3">
+              <Stat label="Lado destacado" value={SIDE_LABEL[c.best.side]} />
+              <Stat label="Melhor odd" value={c.best.odd.toFixed(2)} />
               <Stat
                 label="Diferença vs referência"
                 value={`${c.best.edgePct >= 0 ? "+" : ""}${c.best.edgePct.toFixed(1)} pp`}
               />
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Probabilidade implícita da melhor odd:{" "}
-              {(impliedProb(c.best.odd) * 100).toFixed(1)}%. Limiar para classificar
-              como oportunidade analítica: {RULES.EDGE_THRESHOLD_PCT} pp.
-            </p>
           </div>
         )}
 
@@ -227,7 +267,7 @@ function GameDetail({ game }: { game: Game }) {
           </p>
           <Link
             to="/diario"
-            search={{ game: game.id, side: c.best?.side ?? "home" }}
+            search={{ game: game.id, side: pickSide }}
             className="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20"
           >
             Registrar no diário
