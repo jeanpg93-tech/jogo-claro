@@ -316,7 +316,13 @@ function fixtureMatchesSelection(row: FixtureListRow, tournamentSlugs: string[])
   const name = (row.tournamentName ?? "").toLowerCase();
   const category = (row.categorySlug ?? row.categoryName ?? "").toLowerCase();
   if (tournamentSlugs.includes("world-cup")) {
-    return name === "world cup" || (name.includes("world cup") && category.includes("international"));
+    return (
+      name === "world cup" ||
+      name === "copa do mundo" ||
+      name.includes("fifa world cup") ||
+      name.includes("copa do mundo") ||
+      (name.includes("world cup") && category.includes("international"))
+    );
   }
   return false;
 }
