@@ -11,6 +11,7 @@ import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "./sports-catalog";
 import {
   DEFAULT_ODDSPAPI_BOOKMAKERS,
   DEFAULT_ODDSPAPI_TOURNAMENTS,
+  ODDSPAPI_TOURNAMENTS,
 } from "./oddspapi-catalog";
 
 function getAdmin() {
@@ -77,8 +78,11 @@ export async function runSync(): Promise<MultiSyncResult> {
       bcfg?.bookmakers && bcfg.bookmakers.length > 0
         ? bcfg.bookmakers
         : DEFAULT_ODDSPAPI_BOOKMAKERS;
+    const activeLabels = tournaments
+      .map((slug) => ODDSPAPI_TOURNAMENTS.find((t) => t.slug === slug)?.label)
+      .filter((v): v is string => Boolean(v));
     const provider = getOddsPapi({ tournaments, bookmakers });
-    tasks.push({ name: "oddspapi", provider, activeLabels: [] });
+    tasks.push({ name: "oddspapi", provider, activeLabels });
   }
 
   // Remove jogos de provedores DESATIVADOS (estavam em uso antes do toggle).
