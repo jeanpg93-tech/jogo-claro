@@ -34,13 +34,15 @@ function median(nums: number[]): number {
 export function createTheOddsApiProvider(): OddsProvider {
   return {
     name: "the-odds-api",
-    async fetchUpcomingGames(): Promise<Game[]> {
+    async fetchUpcomingGames(selectedSports?: string[]): Promise<Game[]> {
       const apiKey = process.env.THE_ODDS_API_KEY;
       if (!apiKey) throw new Error("THE_ODDS_API_KEY não configurada.");
 
       const sports =
-        (process.env.ODDS_SPORTS?.split(",").map((s) => s.trim()).filter(Boolean)) ??
-        DEFAULT_SPORTS;
+        selectedSports && selectedSports.length > 0
+          ? selectedSports
+          : (process.env.ODDS_SPORTS?.split(",").map((s) => s.trim()).filter(Boolean)) ??
+            FALLBACK_SPORTS;
 
       const games: Game[] = [];
 
