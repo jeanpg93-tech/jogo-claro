@@ -1,10 +1,45 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Check, Copy, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      toast.success(`${label} copiado`);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Não foi possível copiar. Selecione e copie manualmente.");
+    }
+  }
+
+  return (
+    <button
+      onClick={copy}
+      className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+      title={`Copiar ${label}`}
+    >
+      {copied ? (
+        <>
+          <Check className="h-3 w-3 text-emerald-500" />
+          Copiado
+        </>
+      ) : (
+        <>
+          <Copy className="h-3 w-3" />
+          Copiar
+        </>
+      )}
+    </button>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/admin/sincronizacao")({
   head: () => ({ meta: [{ title: "Sincronização — Admin · Visão de Jogo" }] }),
@@ -181,6 +216,7 @@ function CronDocs() {
     typeof window !== "undefined"
       ? `${window.location.origin}/api/public/sync`
       : "/api/public/sync";
+  const headerLine = "x-sync-secret: <valor do segredo SYNC_SECRET>";
   const ghYaml = `name: Sync Visão de Jogo
 on:
   schedule:
@@ -205,19 +241,25 @@ jobs:
         </p>
         <div className="mt-3 space-y-2">
           <div>
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
-              Endpoint
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Endpoint
+              </div>
+              <CopyButton value={url} label="endpoint" />
             </div>
             <code className="mt-1 block break-all rounded bg-muted px-2 py-1.5 text-xs">
               POST {url}
             </code>
           </div>
           <div>
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
-              Header de segurança
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Header de segurança
+              </div>
+              <CopyButton value={headerLine} label="header" />
             </div>
             <code className="mt-1 block rounded bg-muted px-2 py-1.5 text-xs">
-              x-sync-secret: &lt;valor do segredo SYNC_SECRET&gt;
+              {headerLine}
             </code>
           </div>
         </div>
@@ -244,7 +286,10 @@ jobs:
       </div>
 
       <div className="rounded-xl border border-border/60 bg-card p-4 text-sm md:col-span-2">
-        <h3 className="text-base font-semibold">Alternativa: GitHub Actions</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-base font-semibold">Alternativa: GitHub Actions</h3>
+          <CopyButton value={ghYaml} label="YAML do GitHub Actions" />
+        </div>
         <p className="mt-1 text-muted-foreground">
           Salve em{" "}
           <code className="rounded bg-muted px-1">.github/workflows/sync.yml</code>{" "}
