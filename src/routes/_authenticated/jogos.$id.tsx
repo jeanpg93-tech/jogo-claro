@@ -9,6 +9,7 @@ import {
   type Game,
 } from "@/lib/demo-games";
 import { useGame } from "@/lib/games-data";
+import { isBookBR } from "@/lib/br-books";
 
 type Side = "home" | "draw" | "away";
 const SIDE_LABEL: Record<Side, string> = {
