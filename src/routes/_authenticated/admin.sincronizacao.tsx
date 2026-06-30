@@ -13,6 +13,52 @@ import {
   DEFAULT_ODDSPAPI_TOURNAMENTS,
 } from "@/lib/oddspapi-catalog";
 
+function CollapsibleSection({
+  title,
+  subtitle,
+  badge,
+  defaultOpen = true,
+  actions,
+  children,
+  className = "",
+}: {
+  title: string;
+  subtitle?: string;
+  badge?: ReactNode;
+  defaultOpen?: boolean;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={`mt-6 rounded-xl border border-border/60 bg-card ${className}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3 p-5">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-start gap-3 text-left"
+        >
+          <ChevronDown
+            className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
+          />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold">{title}</h2>
+              {badge}
+            </div>
+            {subtitle && (
+              <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+        </button>
+        {actions && open && <div className="flex items-center gap-2">{actions}</div>}
+      </div>
+      {open && <div className="px-5 pb-5">{children}</div>}
+    </section>
+  );
+}
+
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
 
