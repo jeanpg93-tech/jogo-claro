@@ -55,7 +55,7 @@ export function createTheOddsApiProvider(): OddsProvider {
       for (const sport of sports) {
         const url = new URL(`https://api.the-odds-api.com/v4/sports/${sport}/odds`);
         url.searchParams.set("apiKey", apiKey);
-        url.searchParams.set("regions", "eu,uk,us");
+        url.searchParams.set("regions", "eu,uk,us,au");
         url.searchParams.set("markets", "h2h");
         url.searchParams.set("oddsFormat", "decimal");
         url.searchParams.set("dateFormat", "iso");
