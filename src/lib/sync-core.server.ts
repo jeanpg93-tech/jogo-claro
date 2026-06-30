@@ -71,14 +71,12 @@ export async function runSync(): Promise<MultiSyncResult> {
   if (enabled["oddspapi"]) {
     const tcfg = await getJsonSetting<{ tournaments: string[] }>(admin, "oddspapi_tournaments");
     const bcfg = await getJsonSetting<{ bookmakers: string[] }>(admin, "oddspapi_bookmakers");
-    const tournaments =
-      tcfg?.tournaments && tcfg.tournaments.length > 0
-        ? tcfg.tournaments.filter((slug) => ODDSPAPI_TOURNAMENTS.some((t) => t.slug === slug))
-        : DEFAULT_ODDSPAPI_TOURNAMENTS;
-    const bookmakers =
-      bcfg?.bookmakers && bcfg.bookmakers.length > 0
-        ? bcfg.bookmakers.filter((slug) => ODDSPAPI_BOOKMAKERS.some((b) => b.slug === slug))
-        : DEFAULT_ODDSPAPI_BOOKMAKERS;
+    const storedTournaments =
+      tcfg?.tournaments?.filter((slug) => ODDSPAPI_TOURNAMENTS.some((t) => t.slug === slug)) ?? [];
+    const storedBookmakers =
+      bcfg?.bookmakers?.filter((slug) => ODDSPAPI_BOOKMAKERS.some((b) => b.slug === slug)) ?? [];
+    const tournaments = storedTournaments.length > 0 ? storedTournaments : DEFAULT_ODDSPAPI_TOURNAMENTS;
+    const bookmakers = storedBookmakers.length > 0 ? storedBookmakers : DEFAULT_ODDSPAPI_BOOKMAKERS;
     const activeLabels = tournaments
       .map((slug) => ODDSPAPI_TOURNAMENTS.find((t) => t.slug === slug)?.label)
       .filter((v): v is string => Boolean(v));
