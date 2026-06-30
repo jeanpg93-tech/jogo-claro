@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Copy, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
+import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "@/lib/sports-catalog";
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -206,8 +207,144 @@ function AdminSyncPage() {
         })}
       </div>
 
+      <SportsSelector />
+
       <CronDocs />
     </div>
+  );
+}
+
+function SportsSelector() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const groups = useMemo(() => {
+    const g = new Map<string, typeof SPORTS_CATALOG>();
+    for (const s of SPORTS_CATALOG) {
+      const list = g.get(s.group) ?? [];
+      list.push(s);
+      g.set(s.group, list);
+    }
+    return Array.from(g.entries());
+  }, []);
+
+  async function authedFetch(method: "GET" | "POST", body?: unknown) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error("Sessão expirada. Entre novamente.");
+    const res = await fetch("/api/admin/sync-settings", {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error ?? `Erro ${res.status}`);
+    return json as { sports: string[] };
+  }
+
+  useEffect(() => {
+    authedFetch("GET")
+      .then((r) => {
+        const list = r.sports.length > 0 ? r.sports : DEFAULT_SELECTED_SPORTS;
+        setSelected(new Set(list));
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function toggle(key: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function save() {
+    if (selected.size === 0) {
+      toast.error("Selecione ao menos 1 competição.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await authedFetch("POST", { sports: Array.from(selected) });
+      toast.success("Competições atualizadas. Próximo sync usará esta lista.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Competições sincronizadas</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Marque apenas as competições que devem ser buscadas na próxima
+            sincronização. Cada competição consome ~1 crédito da The Odds API por
+            execução.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {selected.size} selecionada(s) · ~{selected.size} crédito(s)/sync
+          </span>
+          <Button size="sm" onClick={save} disabled={saving || loading}>
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 flex items-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {groups.map(([group, items]) => (
+            <div key={group} className="rounded-lg border border-border/60 p-3">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                {group}
+              </div>
+              <div className="mt-2 space-y-1.5">
+                {items.map((s) => {
+                  const checked = selected.has(s.key);
+                  return (
+                    <label
+                      key={s.key}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-background/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggle(s.key)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      <span className="flex-1">{s.label}</span>
+                      <code className="text-[10px] text-muted-foreground">
+                        {s.key}
+                      </code>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
