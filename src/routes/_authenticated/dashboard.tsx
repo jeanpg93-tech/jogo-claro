@@ -1,0 +1,192 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { CalendarClock, Filter, Search } from "lucide-react";
+import {
+  DEMO_GAMES,
+  STATUS_META,
+  classifyGame,
+  type GameStatus,
+} from "@/lib/demo-games";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useRole } from "@/hooks/use-role";
+
+export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({ meta: [{ title: "Painel — Visão de Jogo" }] }),
+  component: DashboardPage,
+});
+
+const FILTERS: { value: "todos" | GameStatus; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "oportunidade_analitica", label: "Oportunidade analítica" },
+  { value: "sem_oportunidade", label: "Sem oportunidade" },
+  { value: "aguardar_dados", label: "Aguardar dados" },
+  { value: "sem_cobertura", label: "Sem cobertura" },
+];
+
+function DashboardPage() {
+  const { effectiveIsAdmin, isAdmin, viewMode } = useRole();
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("todos");
+  const [query, setQuery] = useState("");
+
+  const items = useMemo(() => {
+    return DEMO_GAMES.map((g) => ({ g, c: classifyGame(g) })).filter(
+      ({ g, c }) => {
+        if (filter !== "todos" && c.status !== filter) return false;
+        if (!query) return true;
+        const q = query.toLowerCase();
+        return (
+          g.home.toLowerCase().includes(q) ||
+          g.away.toLowerCase().includes(q) ||
+          g.competition.toLowerCase().includes(q)
+        );
+      },
+    );
+  }, [filter, query]);
+
+  const counts = useMemo(() => {
+    const acc: Record<GameStatus, number> = {
+      sem_cobertura: 0,
+      aguardar_dados: 0,
+      sem_oportunidade: 0,
+      oportunidade_analitica: 0,
+    };
+    for (const g of DEMO_GAMES) acc[classifyGame(g).status]++;
+    return acc;
+  }, []);
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Painel de jogos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Análise pré-jogo demonstrativa. Os dados desta tela são fictícios e servem
+            apenas para validar a metodologia.
+          </p>
+        </div>
+        {isAdmin && (
+          <div className="rounded-md border border-border/60 bg-card px-3 py-2 text-xs text-muted-foreground">
+            Você está visualizando como{" "}
+            <strong className="text-foreground">
+              {viewMode === "admin" ? "Admin Master" : "Usuário comum"}
+            </strong>
+            .
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {(
+          [
+            "oportunidade_analitica",
+            "sem_oportunidade",
+            "aguardar_dados",
+            "sem_cobertura",
+          ] as GameStatus[]
+        ).map((s) => (
+          <div
+            key={s}
+            className={`rounded-lg border p-3 ${STATUS_META[s].tone}`}
+            title={STATUS_META[s].description}
+          >
+            <div className="text-[10px] uppercase tracking-widest opacity-80">
+              {STATUS_META[s].label}
+            </div>
+            <div className="mt-1 text-2xl font-bold">{counts[s]}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por time ou competição"
+            className="pl-9"
+          />
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto">
+          <Filter className="mr-1 h-4 w-4 text-muted-foreground" />
+          {FILTERS.map((f) => (
+            <Button
+              key={f.value}
+              size="sm"
+              variant={filter === f.value ? "default" : "outline"}
+              onClick={() => setFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3">
+        {items.length === 0 && (
+          <div className="rounded-lg border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
+            Nenhum jogo corresponde ao filtro selecionado.
+          </div>
+        )}
+        {items.map(({ g, c }) => (
+          <Link
+            key={g.id}
+            to="/jogos/$id"
+            params={{ id: g.id }}
+            className="group rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-primary/40 hover:bg-card/80"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                  {g.competition} · {g.round}
+                </div>
+                <div className="mt-1 text-lg font-semibold tracking-tight">
+                  {g.home}{" "}
+                  <span className="text-muted-foreground">vs</span> {g.away}
+                </div>
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {new Date(g.kickoff).toLocaleString("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
+                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
+                    Demo
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_META[c.status].tone}`}
+                >
+                  {STATUS_META[c.status].label}
+                </span>
+                {c.best && c.status === "oportunidade_analitica" && (
+                  <div className="mt-1 text-xs text-emerald-300">
+                    {sideLabel(c.best.side)} · melhor odd {c.best.odd.toFixed(2)} ·{" "}
+                    +{c.best.edgePct.toFixed(1)}pp vs referência
+                  </div>
+                )}
+              </div>
+            </div>
+            {effectiveIsAdmin && (
+              <div className="mt-3 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
+                <strong className="text-foreground">Visão Admin:</strong> {g.books.length}{" "}
+                fonte(s) demo, atualizado{" "}
+                {g.updatedAt
+                  ? new Date(g.updatedAt).toLocaleString("pt-BR")
+                  : "—"}
+                .
+              </div>
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function sideLabel(s: "home" | "draw" | "away") {
+  return s === "home" ? "Mandante" : s === "draw" ? "Empate" : "Visitante";
+}
