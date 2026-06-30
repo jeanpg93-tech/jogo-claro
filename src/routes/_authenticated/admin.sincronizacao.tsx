@@ -421,6 +421,10 @@ function OddsPapiSelector() {
         </Button>
       </div>
 
+      <LiveTournamentsList />
+
+
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border/60 p-3">
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
