@@ -116,7 +116,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const oddsUrl =
         `${HOST}/v4/odds-by-tournaments?bookmaker=${bookmakers.join(",")}` +
         `&tournamentIds=${ids}&apiKey=${encodeURIComponent(apiKey)}`;
-      const oddsRes = await fetch(oddsUrl);
+      const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
       if (!oddsRes.ok) {
         console.error(`[oddspapi] odds-by-tournaments -> ${oddsRes.status}`);
         return [];
