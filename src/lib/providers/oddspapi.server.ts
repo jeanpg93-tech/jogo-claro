@@ -127,6 +127,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       // 3) Mapa de participantes (uma chamada para o esporte).
       const partRes = await fetch(
         `${HOST}/v4/participants?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
+        { headers: ODDSPAPI_HEADERS },
       );
       const partRows = partRes.ok ? ((await partRes.json()) as ParticipantRow[]) : [];
       const nameByPart = new Map(partRows.map((p) => [p.participantId, p.participantName]));
