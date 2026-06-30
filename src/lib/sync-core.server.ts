@@ -149,3 +149,18 @@ export async function verifyAdminFromToken(token: string): Promise<boolean> {
     .eq("user_id", data.user.id);
   return Boolean(roles?.some((r) => r.role === "admin"));
 }
+
+async function getSelectedSports(
+  admin: ReturnType<typeof getAdmin>,
+): Promise<string[] | undefined> {
+  const { data } = await admin
+    .from("app_settings")
+    .select("value")
+    .eq("key", "selected_sports")
+    .maybeSingle();
+  const value = (data?.value ?? null) as { sports?: string[] } | null;
+  if (value && Array.isArray(value.sports) && value.sports.length > 0) {
+    return value.sports;
+  }
+  return undefined;
+}
