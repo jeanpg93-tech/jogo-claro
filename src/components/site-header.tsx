@@ -27,15 +27,20 @@ export function SiteHeader() {
 
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           {user && (
-            <Link to="/dashboard" className="hover:text-foreground">
-              Painel
-            </Link>
+            <>
+              <Link to="/dashboard" className="hover:text-foreground">
+                Painel
+              </Link>
+              <Link to="/diario" className="hover:text-foreground">
+                Diário
+              </Link>
+            </>
           )}
+          <Link to="/metodologia" className="hover:text-foreground">
+            Metodologia
+          </Link>
           <Link to="/jogo-responsavel" className="hover:text-foreground">
             Jogo responsável
-          </Link>
-          <Link to="/termos" className="hover:text-foreground">
-            Termos
           </Link>
         </nav>
 

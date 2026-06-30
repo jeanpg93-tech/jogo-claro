@@ -184,7 +184,21 @@ function JogoDetailPage() {
           </div>
         )}
 
-        <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/30 p-3">
+          <p className="text-xs text-muted-foreground">
+            Quer registrar sua leitura deste jogo? Use o diário pessoal — é privado e
+            não envia nenhuma aposta.
+          </p>
+          <Link
+            to="/diario"
+            search={{ game: game.id, side: c.best?.side ?? "home" }}
+            className="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20"
+          >
+            Registrar no diário
+          </Link>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200">
           Visão de Jogo não recebe apostas, não executa apostas e não promete
           resultados. As classificações são geradas por regras objetivas e
           transparentes a partir dos dados disponíveis.

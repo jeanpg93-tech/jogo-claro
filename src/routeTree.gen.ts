@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as MetodologiaRouteImport } from './routes/metodologia'
 import { Route as JogoResponsavelRouteImport } from './routes/jogo-responsavel'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -18,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthEntrarRouteImport } from './routes/auth.entrar'
 import { Route as AuthCadastroRouteImport } from './routes/auth.cadastro'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedDiarioRouteImport } from './routes/_authenticated/diario'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 
@@ -29,6 +31,11 @@ const TermosRoute = TermosRouteImport.update({
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MetodologiaRoute = MetodologiaRouteImport.update({
+  id: '/metodologia',
+  path: '/metodologia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JogoResponsavelRoute = JogoResponsavelRouteImport.update({
@@ -65,6 +72,11 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDiarioRoute = AuthenticatedDiarioRouteImport.update({
+  id: '/diario',
+  path: '/diario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -80,9 +92,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/jogo-responsavel': typeof JogoResponsavelRoute
+  '/metodologia': typeof MetodologiaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/termos': typeof TermosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/diario': typeof AuthenticatedDiarioRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
@@ -92,9 +106,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/jogo-responsavel': typeof JogoResponsavelRoute
+  '/metodologia': typeof MetodologiaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/termos': typeof TermosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/diario': typeof AuthenticatedDiarioRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
@@ -106,9 +122,11 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/jogo-responsavel': typeof JogoResponsavelRoute
+  '/metodologia': typeof MetodologiaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/termos': typeof TermosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/diario': typeof AuthenticatedDiarioRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
@@ -120,9 +138,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/jogo-responsavel'
+    | '/metodologia'
     | '/privacidade'
     | '/termos'
     | '/dashboard'
+    | '/diario'
     | '/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
@@ -132,9 +152,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/jogo-responsavel'
+    | '/metodologia'
     | '/privacidade'
     | '/termos'
     | '/dashboard'
+    | '/diario'
     | '/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
@@ -145,9 +167,11 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/jogo-responsavel'
+    | '/metodologia'
     | '/privacidade'
     | '/termos'
     | '/_authenticated/dashboard'
+    | '/_authenticated/diario'
     | '/_authenticated/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
@@ -159,6 +183,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   JogoResponsavelRoute: typeof JogoResponsavelRoute
+  MetodologiaRoute: typeof MetodologiaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
 }
@@ -177,6 +202,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/metodologia': {
+      id: '/metodologia'
+      path: '/metodologia'
+      fullPath: '/metodologia'
+      preLoaderRoute: typeof MetodologiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jogo-responsavel': {
@@ -228,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/diario': {
+      id: '/_authenticated/diario'
+      path: '/diario'
+      fullPath: '/diario'
+      preLoaderRoute: typeof AuthenticatedDiarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -247,12 +286,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDiarioRoute: typeof AuthenticatedDiarioRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedJogosIdRoute: typeof AuthenticatedJogosIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDiarioRoute: AuthenticatedDiarioRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedJogosIdRoute: AuthenticatedJogosIdRoute,
 }
@@ -277,6 +318,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   JogoResponsavelRoute: JogoResponsavelRoute,
+  MetodologiaRoute: MetodologiaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
 }
