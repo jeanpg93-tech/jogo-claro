@@ -163,8 +163,10 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       let bookmakers = requestedBookmakers;
       if (tournamentSlugs.length === 0 || bookmakers.length === 0) return [];
 
-      // Valida os slugs de casas contra a lista viva do provedor. Um único slug
-      // inválido faz o endpoint de odds retornar 400 e antes isso virava "0 jogos".
+      // Valida os slugs de casas contra a lista viva do provedor quando a conta
+      // permite consultar esse endpoint. Algumas chaves da OddsPapi retornam
+      // 403 em /v4/bookmakers, mas ainda conseguem consultar odds por casa;
+      // nesse caso não bloqueamos a sincronização inteira.
       const booksRes = await fetchWithRetry(
         `${HOST}/v4/bookmakers?apiKey=${encodeURIComponent(apiKey)}`,
       );
@@ -178,10 +180,13 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         }
       } else {
         const body = await responseText(booksRes);
-        throw new Error(`OddsPapi não confirmou as casas disponíveis (${booksRes.status}). ${body.slice(0, 180)}`);
+        console.warn(
+          `[oddspapi] não foi possível confirmar casas disponíveis (${booksRes.status}). ` +
+            `Prosseguindo com as casas selecionadas. ${body.slice(0, 180)}`,
+        );
       }
       if (bookmakers.length === 0) {
-        throw new Error("Nenhuma casa selecionada existe na OddsPapi. Use 'Listar torneios' e revise os slugs das casas.");
+        throw new Error("Nenhuma casa selecionada para consultar na OddsPapi. Revise as casas no painel de sincronização.");
       }
 
       // 1) Lista torneios do esporte e filtra pelos slugs escolhidos.
