@@ -3,6 +3,7 @@
 import type { OddsProvider } from "./types";
 import type { Game, BookOdds } from "@/lib/demo-games";
 import { SPORTS_CATALOG } from "@/lib/sports-catalog";
+import { ptTeam } from "@/lib/teams-pt";
 
 // Esportes alvo iniciais. Pode expandir via env ODDS_SPORTS (CSV).
 // Default usado apenas como fallback se nenhuma lista for fornecida.
@@ -97,8 +98,8 @@ export function createTheOddsApiProvider(): OddsProvider {
             id: ev.id, // será external_id no banco
             competition: ptLabel(ev.sport_key, ev.sport_title),
             round: "—",
-            home: ev.home_team,
-            away: ev.away_team,
+            home: ptTeam(ev.home_team),
+            away: ptTeam(ev.away_team),
             kickoff: ev.commence_time,
             updatedAt: latestUpdate,
             reference,

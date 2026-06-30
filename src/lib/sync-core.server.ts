@@ -2,6 +2,7 @@
 // Lê env vars do Cloudflare Worker, monta cliente service-role, faz upsert.
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "./providers/index.server";
+import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "./sports-catalog";
 
 function getAdmin() {
   // Usamos prefixo EXT_ porque o Lovable reserva o prefixo SUPABASE_ para
@@ -39,6 +40,27 @@ export async function runSync(): Promise<SyncResult> {
 
   try {
     const selectedSports = await getSelectedSports(admin);
+    const activeSportKeys = selectedSports ?? DEFAULT_SELECTED_SPORTS;
+    const activeLabels = activeSportKeys
+      .map((k) => SPORTS_CATALOG.find((s) => s.key === k)?.label)
+      .filter((v): v is string => Boolean(v));
+
+    // Limpeza imediata: remove jogos de competições que não estão mais selecionadas.
+    // Roda ANTES do fetch para garantir consistência mesmo se a API externa falhar.
+    if (activeLabels.length > 0) {
+      const { data: outOfScope } = await admin
+        .from("games")
+        .select("id")
+        .eq("provider", provider.name)
+        .not("competition", "in", `(${activeLabels.map((l) => `"${l.replace(/"/g, '\\"')}"`).join(",")})`);
+      const dropIds = (outOfScope ?? []).map((r) => r.id as string);
+      if (dropIds.length > 0) {
+        await admin.from("game_odds").delete().in("game_id", dropIds);
+        await admin.from("game_reference").delete().in("game_id", dropIds);
+        await admin.from("games").delete().in("id", dropIds);
+      }
+    }
+
     const games = await provider.fetchUpcomingGames(selectedSports);
     // Para cada jogo, upsert em games (por provider+external_id), depois substitui odds e reference.
     for (const g of games) {
