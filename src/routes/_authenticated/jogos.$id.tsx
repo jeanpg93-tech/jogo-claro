@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, CalendarClock, Info, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   STATUS_META,
   classifyGame,
@@ -8,6 +9,13 @@ import {
   type Game,
 } from "@/lib/demo-games";
 import { useGame } from "@/lib/games-data";
+
+type Side = "home" | "draw" | "away";
+const SIDE_LABEL: Record<Side, string> = {
+  home: "Mandante",
+  draw: "Empate",
+  away: "Visitante",
+};
 
 export const Route = createFileRoute("/_authenticated/jogos/$id")({
   head: ({ params }) => ({
