@@ -286,7 +286,10 @@ jobs:
       </div>
 
       <div className="rounded-xl border border-border/60 bg-card p-4 text-sm md:col-span-2">
-        <h3 className="text-base font-semibold">Alternativa: GitHub Actions</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-base font-semibold">Alternativa: GitHub Actions</h3>
+          <CopyButton value={ghYaml} label="YAML do GitHub Actions" />
+        </div>
         <p className="mt-1 text-muted-foreground">
           Salve em{" "}
           <code className="rounded bg-muted px-1">.github/workflows/sync.yml</code>{" "}
