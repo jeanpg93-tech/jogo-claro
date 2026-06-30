@@ -241,8 +241,11 @@ jobs:
         </p>
         <div className="mt-3 space-y-2">
           <div>
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
-              Endpoint
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Endpoint
+              </div>
+              <CopyButton value={url} label="endpoint" />
             </div>
             <code className="mt-1 block break-all rounded bg-muted px-2 py-1.5 text-xs">
               POST {url}
