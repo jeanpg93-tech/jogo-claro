@@ -149,6 +149,19 @@ function DashboardPage() {
             className="pl-9"
           />
         </div>
+        <Select value={competition} onValueChange={setCompetition}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Competição" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_COMPETITIONS}>Todas as competições</SelectItem>
+            {competitions.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex items-center gap-1 overflow-x-auto">
           <Filter className="mr-1 h-4 w-4 text-muted-foreground" />
           {FILTERS.map((f) => (
