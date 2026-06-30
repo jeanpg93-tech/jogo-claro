@@ -9,6 +9,14 @@ import { ptTeam } from "@/lib/teams-pt";
 const HOST = "https://api.oddspapi.io";
 const SPORT_ID = 10; // futebol
 
+// OddsPapi roda atrás de Cloudflare e bloqueia requisições sem User-Agent
+// reconhecível (Workers/SSR enviam UA vazio → 403 Forbidden). Forçamos
+// cabeçalhos explícitos em todas as chamadas.
+export const ODDSPAPI_HEADERS: HeadersInit = {
+  "User-Agent": "VisaoDeJogo/1.0 (+https://visaodejogo.lovable.app)",
+  Accept: "application/json",
+};
+
 interface TournamentRow {
   tournamentId: number;
   tournamentSlug: string;
@@ -75,6 +83,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       // 1) Lista torneios do esporte e filtra pelos slugs escolhidos.
       const tournRes = await fetch(
         `${HOST}/v4/tournaments?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
+        { headers: ODDSPAPI_HEADERS },
       );
       if (!tournRes.ok) {
         const body = await tournRes.text().catch(() => "");
@@ -107,7 +116,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const oddsUrl =
         `${HOST}/v4/odds-by-tournaments?bookmaker=${bookmakers.join(",")}` +
         `&tournamentIds=${ids}&apiKey=${encodeURIComponent(apiKey)}`;
-      const oddsRes = await fetch(oddsUrl);
+      const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
       if (!oddsRes.ok) {
         console.error(`[oddspapi] odds-by-tournaments -> ${oddsRes.status}`);
         return [];
@@ -118,6 +127,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       // 3) Mapa de participantes (uma chamada para o esporte).
       const partRes = await fetch(
         `${HOST}/v4/participants?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
+        { headers: ODDSPAPI_HEADERS },
       );
       const partRows = partRes.ok ? ((await partRes.json()) as ParticipantRow[]) : [];
       const nameByPart = new Map(partRows.map((p) => [p.participantId, p.participantName]));
