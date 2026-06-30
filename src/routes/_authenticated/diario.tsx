@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpenCheck, Loader2, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { DEMO_GAMES, classifyGame, STATUS_META, type DemoGame } from "@/lib/demo-games";
+import { classifyGame, STATUS_META, type Game } from "@/lib/demo-games";
+import { useGames } from "@/lib/games-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
