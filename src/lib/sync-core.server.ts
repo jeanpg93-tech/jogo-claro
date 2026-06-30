@@ -38,7 +38,8 @@ export async function runSync(): Promise<SyncResult> {
   let error: string | undefined;
 
   try {
-    const games = await provider.fetchUpcomingGames();
+    const selectedSports = await getSelectedSports(admin);
+    const games = await provider.fetchUpcomingGames(selectedSports);
     // Para cada jogo, upsert em games (por provider+external_id), depois substitui odds e reference.
     for (const g of games) {
       const { data: existing } = await admin
