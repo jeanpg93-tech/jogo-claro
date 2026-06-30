@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Loader2, RefreshCw, Save } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Check, ChevronDown, Copy, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
@@ -12,6 +12,52 @@ import {
   DEFAULT_ODDSPAPI_BOOKMAKERS,
   DEFAULT_ODDSPAPI_TOURNAMENTS,
 } from "@/lib/oddspapi-catalog";
+
+function CollapsibleSection({
+  title,
+  subtitle,
+  badge,
+  defaultOpen = true,
+  actions,
+  children,
+  className = "",
+}: {
+  title: string;
+  subtitle?: string;
+  badge?: ReactNode;
+  defaultOpen?: boolean;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={`mt-6 rounded-xl border border-border/60 bg-card ${className}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3 p-5">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-start gap-3 text-left"
+        >
+          <ChevronDown
+            className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
+          />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold">{title}</h2>
+              {badge}
+            </div>
+            {subtitle && (
+              <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+        </button>
+        {actions && open && <div className="flex items-center gap-2">{actions}</div>}
+      </div>
+      {open && <div className="px-5 pb-5">{children}</div>}
+    </section>
+  );
+}
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -67,6 +113,7 @@ interface SyncRun {
 function AdminSyncPage() {
   const { effectiveIsAdmin } = useRole();
   const [runs, setRuns] = useState<SyncRun[] | null>(null);
+  const [showAllRuns, setShowAllRuns] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -162,56 +209,82 @@ function AdminSyncPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-border/60 bg-card">
-        <div className="grid grid-cols-12 border-b border-border/60 px-4 py-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          <div className="col-span-3">Início</div>
-          <div className="col-span-2">Duração</div>
-          <div className="col-span-2">Provedor</div>
-          <div className="col-span-1 text-right">Novos</div>
-          <div className="col-span-1 text-right">Atualizados</div>
-          <div className="col-span-3">Status</div>
-        </div>
-        {runs?.length === 0 && (
-          <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-            Nenhuma sincronização registrada ainda.
+      <CollapsibleSection
+        title="Histórico de sincronizações"
+        subtitle="Últimas execuções (manuais e via cron)."
+        badge={
+          runs && (
+            <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
+              {runs.length}
+            </span>
+          )
+        }
+        className="!mt-6 !p-0"
+      >
+        <div className="-mx-5 -mb-5 rounded-b-xl border-t border-border/60">
+          <div className="grid grid-cols-12 border-b border-border/60 px-4 py-2 text-[11px] uppercase tracking-widest text-muted-foreground">
+            <div className="col-span-3">Início</div>
+            <div className="col-span-2">Duração</div>
+            <div className="col-span-2">Provedor</div>
+            <div className="col-span-1 text-right">Novos</div>
+            <div className="col-span-2 text-right">Atualizados</div>
+            <div className="col-span-2 text-right">Status</div>
           </div>
-        )}
-        {runs?.map((r) => {
-          const dur = r.finished_at
-            ? Math.max(
-                0,
-                new Date(r.finished_at).getTime() - new Date(r.started_at).getTime(),
-              )
-            : null;
-          return (
-            <div
-              key={r.id}
-              className="grid grid-cols-12 items-center border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
-            >
-              <div className="col-span-3 text-xs">
-                {new Date(r.started_at).toLocaleString("pt-BR")}
-              </div>
-              <div className="col-span-2 text-xs tabular-nums">
-                {dur !== null ? `${(dur / 1000).toFixed(1)}s` : "—"}
-              </div>
-              <div className="col-span-2 text-xs">{r.provider}</div>
-              <div className="col-span-1 text-right tabular-nums">{r.games_inserted}</div>
-              <div className="col-span-1 text-right tabular-nums">{r.games_updated}</div>
-              <div className="col-span-3">
-                {r.error ? (
-                  <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] text-red-300">
-                    Erro: {r.error.slice(0, 60)}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
-                    OK
-                  </span>
-                )}
-              </div>
+          {runs?.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Nenhuma sincronização registrada ainda.
             </div>
-          );
-        })}
-      </div>
+          )}
+          {(showAllRuns ? runs : runs?.slice(0, 5))?.map((r) => {
+            const dur = r.finished_at
+              ? Math.max(
+                  0,
+                  new Date(r.finished_at).getTime() - new Date(r.started_at).getTime(),
+                )
+              : null;
+            return (
+              <div
+                key={r.id}
+                className="grid grid-cols-12 items-center border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
+              >
+                <div className="col-span-3 text-xs">
+                  {new Date(r.started_at).toLocaleString("pt-BR")}
+                </div>
+                <div className="col-span-2 text-xs tabular-nums">
+                  {dur !== null ? `${(dur / 1000).toFixed(1)}s` : "—"}
+                </div>
+                <div className="col-span-2 text-xs">{r.provider}</div>
+                <div className="col-span-1 text-right tabular-nums">{r.games_inserted}</div>
+                <div className="col-span-2 text-right tabular-nums">{r.games_updated}</div>
+                <div className="col-span-2 flex justify-end">
+                  {r.error ? (
+                    <span
+                      title={r.error}
+                      className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] text-red-300"
+                    >
+                      Erro
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
+                      OK
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {runs && runs.length > 5 && (
+            <div className="border-t border-border/40 px-4 py-2 text-center">
+              <button
+                onClick={() => setShowAllRuns((v) => !v)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {showAllRuns ? "Mostrar menos" : `Ver todas (${runs.length})`}
+              </button>
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
 
       <ProvidersPanel />
 
@@ -277,18 +350,16 @@ function ProvidersPanel() {
   }
 
   return (
-    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-      <h2 className="text-lg font-semibold">Provedores de odds</h2>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Ative ou desative cada fonte independentemente. Desligado = não consome cota
-        nem grava jogos.
-      </p>
+    <CollapsibleSection
+      title="Provedores de odds"
+      subtitle="Ative ou desative cada fonte independentemente. Desligado = não consome cota nem grava jogos."
+    >
       {loading ? (
-        <div className="mt-4 flex items-center text-sm text-muted-foreground">
+        <div className="flex items-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
         </div>
       ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {providers.map((p) => (
             <div
               key={p.name}
@@ -298,11 +369,7 @@ function ProvidersPanel() {
                 <div className="text-sm font-medium">{labelOf(p.name)}</div>
                 <div className="mt-0.5 text-[11px] text-muted-foreground">
                   Chave:{" "}
-                  <span
-                    className={
-                      p.keyConfigured ? "text-emerald-400" : "text-amber-400"
-                    }
-                  >
+                  <span className={p.keyConfigured ? "text-emerald-400" : "text-amber-400"}>
                     {p.keyConfigured ? "configurada" : "ausente"}
                   </span>
                 </div>
@@ -322,7 +389,7 @@ function ProvidersPanel() {
           ))}
         </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -402,15 +469,15 @@ function OddsPapiSelector() {
   if (!enabled) return null;
 
   return (
-    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">OddsPapi — torneios e casas</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Selecione os torneios e as casas que serão buscados na OddsPapi.
-            Casas BR aparecem com destaque.
-          </p>
-        </div>
+    <CollapsibleSection
+      title="OddsPapi — torneios e casas"
+      badge={
+        <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-sky-300">
+          Provedor: OddsPapi
+        </span>
+      }
+      subtitle="Selecione os torneios e as casas que serão buscados na OddsPapi. Casas BR aparecem com destaque."
+      actions={
         <Button size="sm" onClick={save} disabled={saving}>
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -419,11 +486,9 @@ function OddsPapiSelector() {
           )}
           Salvar
         </Button>
-      </div>
-
+      }
+    >
       <LiveTournamentsList />
-
-
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border/60 p-3">
@@ -486,7 +551,7 @@ function OddsPapiSelector() {
           </div>
         </div>
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -676,17 +741,16 @@ function SportsSelector() {
   }
 
   return (
-    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Competições sincronizadas</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Marque apenas as competições que devem ser buscadas na próxima
-            sincronização. Cada competição consome ~1 crédito da The Odds API por
-            execução.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <CollapsibleSection
+      title="The Odds API — competições"
+      badge={
+        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-amber-300">
+          Provedor: The Odds API
+        </span>
+      }
+      subtitle="Marque apenas as competições que devem ser buscadas na próxima sincronização da The Odds API. Cada competição consome ~1 crédito por execução."
+      actions={
+        <>
           <span className="text-xs text-muted-foreground">
             {selected.size} selecionada(s) · ~{selected.size} crédito(s)/sync
           </span>
@@ -698,15 +762,15 @@ function SportsSelector() {
             )}
             Salvar
           </Button>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {loading ? (
-        <div className="mt-4 flex items-center text-sm text-muted-foreground">
+        <div className="flex items-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
         </div>
       ) : (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {groups.map(([group, items]) => (
             <div key={group} className="rounded-lg border border-border/60 p-3">
               <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -738,7 +802,7 @@ function SportsSelector() {
           ))}
         </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -762,7 +826,12 @@ jobs:
           curl -fsS -X POST "${url}" \\
             -H "x-sync-secret: \${{ secrets.SYNC_SECRET }}"`;
   return (
-    <section className="mt-6 grid gap-4 md:grid-cols-2">
+    <CollapsibleSection
+      title="Cron e automação"
+      subtitle="Configure um agendador externo para chamar a sincronização automaticamente."
+      defaultOpen={false}
+    >
+      <div className="grid gap-4 md:grid-cols-2">
       <div className="rounded-xl border border-border/60 bg-card p-4 text-sm">
         <h3 className="text-base font-semibold">Cron externo (recomendado)</h3>
         <p className="mt-1 text-muted-foreground">
@@ -852,7 +921,8 @@ jobs:
         consultados. O cron em si não consome créditos — apenas as chamadas
         externas.
       </div>
-    </section>
+      </div>
+    </CollapsibleSection>
   );
 }
 
