@@ -5,10 +5,18 @@ import type { Game, BookOdds } from "@/lib/demo-games";
 
 // Esportes alvo iniciais. Pode expandir via env ODDS_SPORTS (CSV).
 const DEFAULT_SPORTS = [
+  // Copa do Mundo FIFA 2026 (em andamento)
+  "soccer_fifa_world_cup",
+  "soccer_fifa_world_cup_winner",
+  // Campeonatos nacionais e continentais
   "soccer_brazil_campeonato",
   "soccer_brazil_serie_b",
   "soccer_uefa_champs_league",
+  "soccer_uefa_europa_league",
+  "soccer_conmebol_copa_libertadores",
   "soccer_epl",
+  "soccer_spain_la_liga",
+  "soccer_italy_serie_a",
 ];
 
 interface TheOddsApiEvent {
