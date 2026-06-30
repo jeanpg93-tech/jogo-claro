@@ -741,17 +741,16 @@ function SportsSelector() {
   }
 
   return (
-    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Competições sincronizadas</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Marque apenas as competições que devem ser buscadas na próxima
-            sincronização. Cada competição consome ~1 crédito da The Odds API por
-            execução.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <CollapsibleSection
+      title="The Odds API — competições"
+      badge={
+        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-amber-300">
+          Provedor: The Odds API
+        </span>
+      }
+      subtitle="Marque apenas as competições que devem ser buscadas na próxima sincronização da The Odds API. Cada competição consome ~1 crédito por execução."
+      actions={
+        <>
           <span className="text-xs text-muted-foreground">
             {selected.size} selecionada(s) · ~{selected.size} crédito(s)/sync
           </span>
@@ -763,15 +762,15 @@ function SportsSelector() {
             )}
             Salvar
           </Button>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {loading ? (
-        <div className="mt-4 flex items-center text-sm text-muted-foreground">
+        <div className="flex items-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
         </div>
       ) : (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {groups.map(([group, items]) => (
             <div key={group} className="rounded-lg border border-border/60 p-3">
               <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -803,7 +802,7 @@ function SportsSelector() {
           ))}
         </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
