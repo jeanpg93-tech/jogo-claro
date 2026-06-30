@@ -21,6 +21,8 @@ import { Route as AuthCadastroRouteImport } from './routes/auth.cadastro'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedDiarioRouteImport } from './routes/_authenticated/diario'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
+import { Route as ApiAdminSyncRouteImport } from './routes/api/admin/sync'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 
 const TermosRoute = TermosRouteImport.update({
@@ -82,6 +84,16 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicSyncRoute = ApiPublicSyncRouteImport.update({
+  id: '/api/public/sync',
+  path: '/api/public/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminSyncRoute = ApiAdminSyncRouteImport.update({
+  id: '/api/admin/sync',
+  path: '/api/admin/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedJogosIdRoute = AuthenticatedJogosIdRouteImport.update({
   id: '/jogos/$id',
   path: '/jogos/$id',
@@ -101,6 +113,8 @@ export interface FileRoutesByFullPath {
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/sync': typeof ApiAdminSyncRoute
+  '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,6 +129,8 @@ export interface FileRoutesByTo {
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/sync': typeof ApiAdminSyncRoute
+  '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +147,8 @@ export interface FileRoutesById {
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/sync': typeof ApiAdminSyncRoute
+  '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +165,8 @@ export interface FileRouteTypes {
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/jogos/$id'
+    | '/api/admin/sync'
+    | '/api/public/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,6 +181,8 @@ export interface FileRouteTypes {
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/jogos/$id'
+    | '/api/admin/sync'
+    | '/api/public/sync'
   id:
     | '__root__'
     | '/'
@@ -176,6 +198,8 @@ export interface FileRouteTypes {
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/_authenticated/jogos/$id'
+    | '/api/admin/sync'
+    | '/api/public/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,6 +210,8 @@ export interface RootRouteChildren {
   MetodologiaRoute: typeof MetodologiaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
+  ApiAdminSyncRoute: typeof ApiAdminSyncRoute
+  ApiPublicSyncRoute: typeof ApiPublicSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -274,6 +300,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/sync': {
+      id: '/api/public/sync'
+      path: '/api/public/sync'
+      fullPath: '/api/public/sync'
+      preLoaderRoute: typeof ApiPublicSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/sync': {
+      id: '/api/admin/sync'
+      path: '/api/admin/sync'
+      fullPath: '/api/admin/sync'
+      preLoaderRoute: typeof ApiAdminSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/jogos/$id': {
       id: '/_authenticated/jogos/$id'
       path: '/jogos/$id'
@@ -321,6 +361,8 @@ const rootRouteChildren: RootRouteChildren = {
   MetodologiaRoute: MetodologiaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
+  ApiAdminSyncRoute: ApiAdminSyncRoute,
+  ApiPublicSyncRoute: ApiPublicSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
