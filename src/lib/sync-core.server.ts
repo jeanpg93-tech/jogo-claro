@@ -2,6 +2,7 @@
 // Lê env vars do Cloudflare Worker, monta cliente service-role, faz upsert.
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "./providers/index.server";
+import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "./sports-catalog";
 
 function getAdmin() {
   // Usamos prefixo EXT_ porque o Lovable reserva o prefixo SUPABASE_ para
