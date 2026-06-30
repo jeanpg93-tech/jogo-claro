@@ -83,6 +83,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       // 1) Lista torneios do esporte e filtra pelos slugs escolhidos.
       const tournRes = await fetch(
         `${HOST}/v4/tournaments?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
+        { headers: ODDSPAPI_HEADERS },
       );
       if (!tournRes.ok) {
         const body = await tournRes.text().catch(() => "");
