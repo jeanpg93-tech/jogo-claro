@@ -1,11 +1,10 @@
 // Adapter OddsPapi.
-// Revisado contra a chave real disponível no ambiente: esta conta responde na API v4
-// (https://api.oddspapi.io/v4). A API v5 retornou invalid_api_key para a mesma chave,
-// então o sync principal fica em v4, usando:
-// - /tournaments?sportId=10
-// - /bookmakers
-// - /odds-by-tournaments?bookmaker=<slug>&tournamentIds=<ids>
-// - /participants?sportId=10
+// Revisado contra a documentação v4. O fluxo principal NÃO depende mais de
+// /tournaments nem /bookmakers, porque algumas chaves gratuitas retornam 403
+// nesses catálogos. A descoberta agora segue o tutorial oficial da Copa:
+// - /fixtures?sportId=10&from=<janela>&to=<janela> para descobrir jogos/torneios
+// - /odds-by-tournaments?tournamentIds=<ids>&bookmakers=<slug> para odds 1X2
+// - fallback /odds?fixtureId=<id>&bookmakers=<slugs> quando necessário
 // Apenas futebol (sportId=10), mercado 1X2 (home/draw/away).
 // Lê ODDSPAPI_API_KEY do ambiente.
 import type { OddsProvider } from "./types";
@@ -49,6 +48,26 @@ interface ParticipantRow {
   participantShortName?: string;
 }
 
+interface FixtureListRow {
+  fixtureId: string;
+  participant1Id: number;
+  participant2Id: number;
+  participant1Name?: string | null;
+  participant1ShortName?: string | null;
+  participant2Name?: string | null;
+  participant2ShortName?: string | null;
+  sportId?: number;
+  tournamentId: number;
+  tournamentSlug?: string | null;
+  tournamentName?: string | null;
+  categorySlug?: string | null;
+  categoryName?: string | null;
+  statusId?: number;
+  hasOdds?: boolean;
+  startTime: string;
+  updatedAt?: string;
+}
+
 type ParticipantPayload =
   | ParticipantRow[]
   | { data?: ParticipantRow[]; participants?: ParticipantRow[]; result?: ParticipantRow[] }
@@ -67,11 +86,26 @@ type FixturePayload =
   | Record<string, unknown>
   | null;
 
+type FixtureListPayload =
+  | FixtureListRow[]
+  | { data?: FixtureListRow[]; fixtures?: FixtureListRow[]; result?: FixtureListRow[] }
+  | Record<string, unknown>
+  | null;
+
 interface OddsFixtureRow {
   fixtureId: string;
   participant1Id: number;
   participant2Id: number;
+  participant1Name?: string | null;
+  participant1ShortName?: string | null;
+  participant2Name?: string | null;
+  participant2ShortName?: string | null;
   tournamentId: number;
+  tournamentSlug?: string | null;
+  tournamentName?: string | null;
+  categorySlug?: string | null;
+  categoryName?: string | null;
+  statusId?: number;
   startTime: string;
   updatedAt?: string;
   hasOdds: boolean;
@@ -82,6 +116,7 @@ interface OddsFixtureRow {
       markets?: Record<
         string,
         {
+          marketActive?: boolean;
           outcomes?: Record<
             string,
             { players?: Record<string, { active: boolean; price: number }> }
@@ -204,6 +239,16 @@ function asFixtureRows(payload: FixturePayload): Array<OddsFixtureRow | OddsPapi
   return [];
 }
 
+function asFixtureListRows(payload: FixtureListPayload): FixtureListRow[] {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  const record = payload as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data as FixtureListRow[];
+  if (Array.isArray(record.fixtures)) return record.fixtures as FixtureListRow[];
+  if (Array.isArray(record.result)) return record.result as FixtureListRow[];
+  return [];
+}
+
 function isLegacyFixture(row: OddsFixtureRow | OddsPapiFixtureRow): row is OddsFixtureRow {
   return "participant1Id" in row && "participant2Id" in row;
 }
@@ -211,6 +256,16 @@ function isLegacyFixture(row: OddsFixtureRow | OddsPapiFixtureRow): row is OddsF
 function normalizeStartTime(value: string | number): string {
   if (typeof value === "number") return new Date(value * 1000).toISOString();
   return value;
+}
+
+function ymd(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
 }
 
 function participantName(row: ParticipantRow): string | undefined {
@@ -235,6 +290,7 @@ function extractLegacyBooks(row: OddsFixtureRow): BookOdds[] {
   for (const [bmKey, bm] of Object.entries(row.bookmakerOdds)) {
     if (!bm.bookmakerIsActive) continue;
     const market = bm.markets?.["101"];
+    if (market?.marketActive === false) continue;
     if (!market?.outcomes) continue;
     const h = market.outcomes["101"]?.players?.["0"];
     const d = market.outcomes["102"]?.players?.["0"];
@@ -245,6 +301,24 @@ function extractLegacyBooks(row: OddsFixtureRow): BookOdds[] {
     books.push({ book: label, home: h.price, draw: d.price, away: a.price });
   }
   return books;
+}
+
+function fixtureTournamentSlug(row: FixtureListRow): string | null {
+  return row.tournamentSlug ?? null;
+}
+
+function fixtureMatchesSelection(row: FixtureListRow, tournamentSlugs: string[]): boolean {
+  const slug = fixtureTournamentSlug(row);
+  if (slug && tournamentSlugs.includes(slug)) return true;
+
+  // Fallback específico documentado pela OddsPapi para Copa do Mundo: às vezes
+  // a descoberta é feita por nome/categoria em vez de catálogo de torneios.
+  const name = (row.tournamentName ?? "").toLowerCase();
+  const category = (row.categorySlug ?? row.categoryName ?? "").toLowerCase();
+  if (tournamentSlugs.includes("world-cup")) {
+    return name === "world cup" || (name.includes("world cup") && category.includes("international"));
+  }
+  return false;
 }
 
 function extractV5Books(row: OddsPapiFixtureRow, requestedBookmakers: string[]): BookOdds[] {
@@ -299,6 +373,56 @@ async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
 
 async function responseText(res: Response): Promise<string> {
   return res.text().catch(() => "");
+}
+
+async function fetchFixtureDiscovery(apiKey: string, tournamentSlugs: string[]): Promise<FixtureListRow[]> {
+  // A documentação de /fixtures limita janelas quando usamos sportId+from+to.
+  // Usamos blocos de 5 dias para ficar abaixo do limite e cobrir a Copa/rodadas futuras.
+  const from = addDays(new Date(), -1);
+  const until = addDays(new Date(), 35);
+  const discovered = new Map<string, FixtureListRow>();
+  let cursor = from;
+  let failures = 0;
+  let lastFailure = "";
+
+  while (cursor < until) {
+    const to = addDays(cursor, 5);
+    const url = apiUrl("/fixtures", {
+      sportId: SPORT_ID,
+      from: ymd(cursor),
+      to: ymd(to < until ? to : until),
+      statusId: 0,
+      hasOdds: true,
+      language: "pt",
+      apiKey,
+    });
+
+    const res = await fetchWithRetry(url);
+    if (!res.ok) {
+      const body = await responseText(res);
+      failures++;
+      lastFailure = `${res.status} ${body.slice(0, 180)}`;
+      console.warn(`[oddspapi] fixtures ${ymd(cursor)}-${ymd(to)} -> ${lastFailure}`);
+    } else {
+      const rows = asFixtureListRows((await res.json().catch(() => null)) as FixtureListPayload);
+      for (const row of rows) {
+        if (!row?.fixtureId || !row.tournamentId) continue;
+        if (!fixtureMatchesSelection(row, tournamentSlugs)) continue;
+        discovered.set(row.fixtureId, row);
+      }
+    }
+
+    cursor = to;
+    if (cursor < until) await wait(2_100);
+  }
+
+  if (discovered.size === 0 && failures > 0) {
+    throw new Error(`OddsPapi não retornou jogos nas janelas consultadas. Último retorno: ${lastFailure}`);
+  }
+
+  return Array.from(discovered.values()).sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+  );
 }
 
 export interface OddsPapiOptions {
