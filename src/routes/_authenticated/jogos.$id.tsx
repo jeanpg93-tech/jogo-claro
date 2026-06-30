@@ -9,6 +9,7 @@ import {
   type Game,
 } from "@/lib/demo-games";
 import { useGame } from "@/lib/games-data";
+import { isBookBR } from "@/lib/br-books";
 
 type Side = "home" | "draw" | "away";
 const SIDE_LABEL: Record<Side, string> = {
@@ -162,13 +163,21 @@ function GameDetail({ game }: { game: Game }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {game.books.map((b) => {
+                    {[...game.books]
+                      .sort((a, b) => {
+                        const ab = isBookBR(a.book) ? 0 : 1;
+                        const bb = isBookBR(b.book) ? 0 : 1;
+                        if (ab !== bb) return ab - bb;
+                        return a.book.localeCompare(b.book);
+                      })
+                      .map((b) => {
                       const isPicked = b.book === pickBook;
+                      const br = isBookBR(b.book);
                       return (
                         <tr
                           key={b.book}
                           onClick={() => setPickBook(b.book)}
-                          className={`cursor-pointer border-t border-border/40 transition ${isPicked ? "bg-primary/10" : "hover:bg-background/60"}`}
+                          className={`cursor-pointer border-t border-border/40 transition ${isPicked ? "bg-primary/10" : br ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "hover:bg-background/60"}`}
                         >
                           <td className="px-1 py-1.5">
                             <label className="flex cursor-pointer items-center gap-2">
@@ -179,7 +188,12 @@ function GameDetail({ game }: { game: Game }) {
                                 onChange={() => setPickBook(b.book)}
                                 className="accent-primary"
                               />
-                              {b.book}
+                              <span>{b.book}</span>
+                              {br && (
+                                <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-300">
+                                  BR
+                                </span>
+                              )}
                             </label>
                           </td>
                           {(["home", "draw", "away"] as Side[]).map((s) => {
@@ -204,7 +218,8 @@ function GameDetail({ game }: { game: Game }) {
                   </tbody>
                 </table>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Não exibimos links para casas de apostas.
+                  <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">BR</span>{" "}
+                  = casas que operam no Brasil. Não exibimos links para casas de apostas.
                 </p>
               </div>
             )}
