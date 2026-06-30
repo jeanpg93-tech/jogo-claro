@@ -21,6 +21,7 @@ interface TournamentRow {
   tournamentId: number;
   tournamentSlug: string;
   tournamentName: string;
+  categorySlug?: string;
   categoryName?: string;
 }
 
@@ -75,6 +76,24 @@ function uniqueById(rows: TournamentRow[]): TournamentRow[] {
   return Array.from(byId.values());
 }
 
+const TOURNAMENT_ALIASES: Record<string, string> = {
+  "fifa-world-cup": "world-cup",
+};
+
+const BOOKMAKER_ALIASES: Record<string, string> = {
+  "betano-br": "betano.bet.br",
+  "estrela-bet": "estrelabet",
+  "stake-br": "stake.bet.br",
+  "superbet-br": "superbet.bet.br",
+  "sportingbet-br": "sportingbet.bet.br",
+  "betboo-br": "betboo.bet.br",
+  "brazino777-br": "brazino777.bet.br",
+};
+
+function normalizeSlugs(values: string[], aliases: Record<string, string>): string[] {
+  return Array.from(new Set(values.map((value) => aliases[value] ?? value).filter(Boolean)));
+}
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -99,8 +118,8 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const apiKey = process.env.ODDSPAPI_API_KEY;
       if (!apiKey) throw new Error("ODDSPAPI_API_KEY não configurada.");
 
-      const tournamentSlugs = Array.from(new Set((opts.tournaments ?? []).filter(Boolean)));
-      const requestedBookmakers = Array.from(new Set((opts.bookmakers ?? []).filter(Boolean)));
+      const tournamentSlugs = normalizeSlugs(opts.tournaments ?? [], TOURNAMENT_ALIASES);
+      const requestedBookmakers = normalizeSlugs(opts.bookmakers ?? [], BOOKMAKER_ALIASES);
       let bookmakers = requestedBookmakers;
       if (tournamentSlugs.length === 0 || bookmakers.length === 0) return [];
 
@@ -138,7 +157,11 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         `[oddspapi] torneios retornados: ${allTourns.length}; slugs solicitados: ${tournamentSlugs.join(",")}`,
       );
       const selected = uniqueById(
-        allTourns.filter((t) => tournamentSlugs.includes(t.tournamentSlug)),
+        allTourns.filter(
+          (t) =>
+            tournamentSlugs.includes(t.tournamentSlug) &&
+            !t.categorySlug?.toLowerCase().includes("simulated"),
+        ),
       );
       if (selected.length === 0) {
         const sample = allTourns
