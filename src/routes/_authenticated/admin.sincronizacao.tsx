@@ -826,7 +826,12 @@ jobs:
           curl -fsS -X POST "${url}" \\
             -H "x-sync-secret: \${{ secrets.SYNC_SECRET }}"`;
   return (
-    <section className="mt-6 grid gap-4 md:grid-cols-2">
+    <CollapsibleSection
+      title="Cron e automação"
+      subtitle="Configure um agendador externo para chamar a sincronização automaticamente."
+      defaultOpen={false}
+    >
+      <div className="grid gap-4 md:grid-cols-2">
       <div className="rounded-xl border border-border/60 bg-card p-4 text-sm">
         <h3 className="text-base font-semibold">Cron externo (recomendado)</h3>
         <p className="mt-1 text-muted-foreground">
