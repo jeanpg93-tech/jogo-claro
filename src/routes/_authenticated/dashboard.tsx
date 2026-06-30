@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/hooks/use-role";
+import { KickoffCountdown } from "@/lib/kickoff-countdown";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -204,7 +205,7 @@ function DashboardPage() {
                   {g.home}{" "}
                   <span className="text-muted-foreground">vs</span> {g.away}
                 </div>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   <CalendarClock className="h-3.5 w-3.5" />
                   {new Date(g.kickoff).toLocaleString("pt-BR", {
                     dateStyle: "short",
@@ -215,6 +216,7 @@ function DashboardPage() {
                   >
                     {g.demo ? "Demo" : "Real"}
                   </span>
+                  <KickoffCountdown kickoff={g.kickoff} books={g.books.length} />
                 </div>
               </div>
               <div className="text-right">
