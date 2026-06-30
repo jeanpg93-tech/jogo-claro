@@ -1,22 +1,20 @@
-// Casas de aposta que operam/aceitam jogadores no Brasil.
-// Os títulos vêm como string da The Odds API (campo `title` de cada bookmaker).
-// Normalizamos para comparação case-insensitive.
+// Casas listadas pela The Odds API que operam/aceitam jogadores no Brasil.
+// IMPORTANTE: Betano, Bet365 (internacional), KTO, Pixbet, Esportes da Sorte,
+// Superbet, Galera.bet, Estrela Bet e demais casas exclusivamente brasileiras
+// NÃO estão disponíveis em nenhuma API genérica de odds — incluindo a
+// The Odds API. Por isso não aparecem mesmo quando têm cotações no site.
 
 const BR_BOOKS_RAW = [
-  "Bet365",
-  "Betano",
-  "Betfair",
-  "Betfair Exchange",
-  "Unibet",
   "1xBet",
+  "Betfair Exchange",
   "Betsson",
-  "Marathon Bet",
-  "MarathonBet",
-  "Sportingbet",
   "Betway",
-  "LeoVegas",
+  "Unibet",
   "888sport",
   "William Hill",
+  "Marathon Bet",
+  "MarathonBet",
+  "LeoVegas",
 ];
 
 const BR_SET = new Set(BR_BOOKS_RAW.map((b) => b.toLowerCase()));
