@@ -75,6 +75,18 @@ function uniqueById(rows: TournamentRow[]): TournamentRow[] {
   return Array.from(byId.values());
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchOddsWithRetry(url: string): Promise<Response> {
+  let res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+  if (res.status !== 429) return res;
+  await wait(1_200);
+  res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+  return res;
+}
+
 export interface OddsPapiOptions {
   tournaments?: string[]; // slugs selecionados
   bookmakers?: string[]; // slugs selecionados
@@ -151,11 +163,12 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       let failedBookmakers = 0;
       let lastFailure = "";
 
-      for (const bookmaker of bookmakers) {
+      for (const [index, bookmaker] of bookmakers.entries()) {
+        if (index > 0) await wait(1_100);
         const oddsUrl =
           `${HOST}/v4/odds-by-tournaments?bookmaker=${encodeURIComponent(bookmaker)}` +
           `&tournamentIds=${encodeURIComponent(ids)}&language=pt&oddsFormat=decimal&apiKey=${encodeURIComponent(apiKey)}`;
-        const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
+        const oddsRes = await fetchOddsWithRetry(oddsUrl);
         if (!oddsRes.ok) {
           failedBookmakers++;
           const body = await oddsRes.text().catch(() => "");
