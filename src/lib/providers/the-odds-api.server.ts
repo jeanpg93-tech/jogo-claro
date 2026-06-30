@@ -2,10 +2,15 @@
 // Lê THE_ODDS_API_KEY do ambiente. Apenas mercado h2h (1X2).
 import type { OddsProvider } from "./types";
 import type { Game, BookOdds } from "@/lib/demo-games";
+import { SPORTS_CATALOG } from "@/lib/sports-catalog";
 
 // Esportes alvo iniciais. Pode expandir via env ODDS_SPORTS (CSV).
 // Default usado apenas como fallback se nenhuma lista for fornecida.
 const FALLBACK_SPORTS = ["soccer_fifa_world_cup"];
+
+function ptLabel(sportKey: string, fallback: string): string {
+  return SPORTS_CATALOG.find((s) => s.key === sportKey)?.label ?? fallback;
+}
 
 interface TheOddsApiEvent {
   id: string;
@@ -90,7 +95,7 @@ export function createTheOddsApiProvider(): OddsProvider {
 
           games.push({
             id: ev.id, // será external_id no banco
-            competition: ev.sport_title,
+            competition: ptLabel(ev.sport_key, ev.sport_title),
             round: "—",
             home: ev.home_team,
             away: ev.away_team,
