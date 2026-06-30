@@ -164,3 +164,18 @@ async function getSelectedSports(
   }
   return undefined;
 }
+
+export async function getSelectedSportsAdmin(): Promise<string[]> {
+  const admin = getAdmin();
+  const list = await getSelectedSports(admin);
+  return list ?? [];
+}
+
+export async function setSelectedSportsAdmin(sports: string[]): Promise<void> {
+  const admin = getAdmin();
+  const { error } = await admin.from("app_settings").upsert(
+    { key: "selected_sports", value: { sports } },
+    { onConflict: "key" },
+  );
+  if (error) throw new Error(error.message);
+}
