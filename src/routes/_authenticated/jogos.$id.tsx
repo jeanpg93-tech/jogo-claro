@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/jogos/$id")({
 });
 
 function JogoDetailPage() {
-  const { game } = Route.useLoaderData();
+  const { game } = Route.useLoaderData() as { game: DemoGame };
   const c = classifyGame(game);
   const meta = STATUS_META[c.status];
 
