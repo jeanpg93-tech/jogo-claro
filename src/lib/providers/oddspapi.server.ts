@@ -21,7 +21,13 @@ interface TournamentRow {
   tournamentId: number;
   tournamentSlug: string;
   tournamentName: string;
+  categorySlug?: string;
   categoryName?: string;
+}
+
+interface BookmakerRow {
+  bookmakerName: string;
+  slug: string;
 }
 
 interface ParticipantRow {
@@ -64,6 +70,42 @@ function ptCompetition(slug: string, fallback: string): string {
   return ODDSPAPI_TOURNAMENTS.find((t) => t.slug === slug)?.label ?? fallback;
 }
 
+function uniqueById(rows: TournamentRow[]): TournamentRow[] {
+  const byId = new Map<number, TournamentRow>();
+  for (const row of rows) byId.set(row.tournamentId, row);
+  return Array.from(byId.values());
+}
+
+const TOURNAMENT_ALIASES: Record<string, string> = {
+  "fifa-world-cup": "world-cup",
+};
+
+const BOOKMAKER_ALIASES: Record<string, string> = {
+  "betano-br": "betano.bet.br",
+  "estrela-bet": "estrelabet",
+  "stake-br": "stake.bet.br",
+  "superbet-br": "superbet.bet.br",
+  "sportingbet-br": "sportingbet.bet.br",
+  "betboo-br": "betboo.bet.br",
+  "brazino777-br": "brazino777.bet.br",
+};
+
+function normalizeSlugs(values: string[], aliases: Record<string, string>): string[] {
+  return Array.from(new Set(values.map((value) => aliases[value] ?? value).filter(Boolean)));
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchOddsWithRetry(url: string): Promise<Response> {
+  let res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+  if (res.status !== 429) return res;
+  await wait(1_200);
+  res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+  return res;
+}
+
 export interface OddsPapiOptions {
   tournaments?: string[]; // slugs selecionados
   bookmakers?: string[]; // slugs selecionados
@@ -76,9 +118,29 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const apiKey = process.env.ODDSPAPI_API_KEY;
       if (!apiKey) throw new Error("ODDSPAPI_API_KEY não configurada.");
 
-      const tournamentSlugs = (opts.tournaments ?? []).filter(Boolean);
-      const bookmakers = (opts.bookmakers ?? []).filter(Boolean);
+      const tournamentSlugs = normalizeSlugs(opts.tournaments ?? [], TOURNAMENT_ALIASES);
+      const requestedBookmakers = normalizeSlugs(opts.bookmakers ?? [], BOOKMAKER_ALIASES);
+      let bookmakers = requestedBookmakers;
       if (tournamentSlugs.length === 0 || bookmakers.length === 0) return [];
+
+      // Valida os slugs de casas contra a lista viva do provedor. Um único slug
+      // inválido faz o endpoint de odds retornar 400 e antes isso virava "0 jogos".
+      const booksRes = await fetch(
+        `${HOST}/v4/bookmakers?apiKey=${encodeURIComponent(apiKey)}`,
+        { headers: ODDSPAPI_HEADERS },
+      );
+      if (booksRes.ok) {
+        const available = (await booksRes.json()) as BookmakerRow[];
+        const valid = new Set(available.map((b) => b.slug));
+        bookmakers = requestedBookmakers.filter((b) => valid.has(b));
+        const ignored = requestedBookmakers.filter((b) => !valid.has(b));
+        if (ignored.length > 0) {
+          console.warn(`[oddspapi] casas ignoradas por slug inválido: ${ignored.join(",")}`);
+        }
+      }
+      if (bookmakers.length === 0) {
+        throw new Error("Nenhuma casa selecionada existe na OddsPapi. Use 'Listar torneios' e revise os slugs das casas.");
+      }
 
       // 1) Lista torneios do esporte e filtra pelos slugs escolhidos.
       const tournRes = await fetch(
@@ -94,7 +156,13 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       console.log(
         `[oddspapi] torneios retornados: ${allTourns.length}; slugs solicitados: ${tournamentSlugs.join(",")}`,
       );
-      const selected = allTourns.filter((t) => tournamentSlugs.includes(t.tournamentSlug));
+      const selected = uniqueById(
+        allTourns.filter(
+          (t) =>
+            tournamentSlugs.includes(t.tournamentSlug) &&
+            !t.categorySlug?.toLowerCase().includes("simulated"),
+        ),
+      );
       if (selected.length === 0) {
         const sample = allTourns
           .slice(0, 40)
@@ -112,16 +180,60 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const nameById = new Map(selected.map((t) => [t.tournamentId, t.tournamentName]));
       const ids = selected.map((t) => t.tournamentId).join(",");
 
-      // 2) Odds por torneio (uma chamada com todos os tournamentIds e bookmakers).
-      const oddsUrl =
-        `${HOST}/v4/odds-by-tournaments?bookmaker=${bookmakers.join(",")}` +
-        `&tournamentIds=${ids}&apiKey=${encodeURIComponent(apiKey)}`;
-      const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
-      if (!oddsRes.ok) {
-        console.error(`[oddspapi] odds-by-tournaments -> ${oddsRes.status}`);
-        return [];
+      // 2) Odds por torneio. A OddsPapi aceita exatamente UMA casa por chamada
+      // no parâmetro singular `bookmaker`; juntamos as respostas por fixture.
+      const fixturesById = new Map<string, OddsFixtureRow>();
+      let failedBookmakers = 0;
+      let lastFailure = "";
+
+      for (const [index, bookmaker] of bookmakers.entries()) {
+        if (index > 0) await wait(1_100);
+        const oddsUrl =
+          `${HOST}/v4/odds-by-tournaments?bookmaker=${encodeURIComponent(bookmaker)}` +
+          `&tournamentIds=${encodeURIComponent(ids)}&language=pt&oddsFormat=decimal&apiKey=${encodeURIComponent(apiKey)}`;
+        const oddsRes = await fetchOddsWithRetry(oddsUrl);
+        if (!oddsRes.ok) {
+          failedBookmakers++;
+          const body = await oddsRes.text().catch(() => "");
+          lastFailure = `${bookmaker}: ${oddsRes.status} ${body.slice(0, 180)}`;
+          console.warn(`[oddspapi] odds-by-tournaments falhou para ${lastFailure}`);
+          continue;
+        }
+
+        const oddsJson = await oddsRes.json();
+        const rows = Array.isArray(oddsJson)
+          ? (oddsJson as OddsFixtureRow[])
+          : ([oddsJson] as OddsFixtureRow[]);
+
+        for (const row of rows) {
+          if (!row?.fixtureId) continue;
+          const existing = fixturesById.get(row.fixtureId);
+          if (!existing) {
+            fixturesById.set(row.fixtureId, {
+              ...row,
+              bookmakerOdds: { ...(row.bookmakerOdds ?? {}) },
+            });
+            continue;
+          }
+          existing.bookmakerOdds = {
+            ...(existing.bookmakerOdds ?? {}),
+            ...(row.bookmakerOdds ?? {}),
+          };
+          existing.hasOdds = existing.hasOdds || row.hasOdds;
+          if (row.updatedAt && (!existing.updatedAt || row.updatedAt > existing.updatedAt)) {
+            existing.updatedAt = row.updatedAt;
+          }
+        }
       }
-      const fixtures = (await oddsRes.json()) as OddsFixtureRow[];
+
+      if (fixturesById.size === 0 && failedBookmakers === bookmakers.length) {
+        throw new Error(`OddsPapi não retornou odds para nenhuma casa. Último erro: ${lastFailure}`);
+      }
+
+      const fixtures = Array.from(fixturesById.values());
+      console.log(
+        `[oddspapi] fixtures recebidos: ${fixtures.length}; casas válidas: ${bookmakers.join(",")}`,
+      );
       if (fixtures.length === 0) return [];
 
       // 3) Mapa de participantes (uma chamada para o esporte).
