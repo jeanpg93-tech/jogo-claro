@@ -109,6 +109,23 @@ export async function runSync(): Promise<SyncResult> {
         await admin.from("game_reference").delete().eq("game_id", gameId);
       }
     }
+
+    // Limpa jogos antigos que não pertencem mais aos campeonatos selecionados.
+    // Mantém apenas os external_ids retornados nesta sincronização.
+    const keepIds = games.map((g) => g.id);
+    if (keepIds.length > 0) {
+      const { data: stale } = await admin
+        .from("games")
+        .select("id, external_id")
+        .eq("provider", provider.name)
+        .not("external_id", "in", `(${keepIds.map((id) => `"${id}"`).join(",")})`);
+      const staleIds = (stale ?? []).map((r) => r.id as string);
+      if (staleIds.length > 0) {
+        await admin.from("game_odds").delete().in("game_id", staleIds);
+        await admin.from("game_reference").delete().in("game_id", staleIds);
+        await admin.from("games").delete().in("id", staleIds);
+      }
+    }
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
     console.error("[runSync] erro:", error);
