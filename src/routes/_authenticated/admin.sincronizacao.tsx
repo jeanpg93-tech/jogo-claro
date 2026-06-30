@@ -216,6 +216,7 @@ function CronDocs() {
     typeof window !== "undefined"
       ? `${window.location.origin}/api/public/sync`
       : "/api/public/sync";
+  const headerLine = "x-sync-secret: <valor do segredo SYNC_SECRET>";
   const ghYaml = `name: Sync Visão de Jogo
 on:
   schedule:
