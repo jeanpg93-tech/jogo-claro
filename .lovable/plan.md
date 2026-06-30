@@ -1,70 +1,82 @@
-# Plano — Conectar Supabase externo
+## Minha recomendação de provedor
 
-Você escolheu o formulário seguro e ainda não rodou o SQL. Vou cuidar das duas pontas.
+**The Odds API** (https://the-odds-api.com) é a melhor escolha para o MVP, pelos seguintes motivos objetivos:
 
-## 1. Registrar credenciais (formulário seguro)
-Vou abrir o fluxo `add_secret` pedindo os dois valores ao mesmo tempo:
-- `VITE_SUPABASE_URL` — Project URL do Supabase (Project Settings → API).
-- `VITE_SUPABASE_PUBLISHABLE_KEY` — anon public key (mesma tela).
+| Critério | The Odds API | API-Football |
+|---|---|---|
+| Foco em odds pré-jogo 1X2 | Sim, é o produto principal | Secundário, exige plano pago |
+| Plano gratuito | 500 requisições/mês | 100 req/dia, mas odds são pagas |
+| Múltiplas casas por jogo | Sim, nativo (vira nosso "books") | Limitado |
+| Esforço de integração | Baixo (1 endpoint, JSON simples) | Médio |
+| Cobre Brasileirão + Europa | Sim (`soccer_brazil_campeonato`, etc.) | Sim |
 
-Os valores ficam salvos como variáveis de ambiente do projeto. Nada é colado no chat e nada é gravado em `.env` commitado. O cliente em `src/integrations/supabase/client.ts` já lê essas variáveis e sai automaticamente do modo "stub" assim que ambas estiverem presentes.
+**API-Football** entra melhor na Fase 5, quando quisermos escalações, lesões e estatísticas avançadas.
 
-## 2. SQL inicial para você rodar no Supabase
-Antes de testar o cadastro, abra o **SQL Editor** do seu projeto Supabase e execute exatamente este bloco (cria a tabela `profiles`, as policies de RLS e o trigger que popula o perfil ao cadastrar):
+Vou montar a Fase 4 com um **adapter plugável**: a integração começa preparada para The Odds API, mas a interface `OddsProvider` permite trocar de provedor sem reescrever o painel.
 
-```sql
-create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  full_name text,
-  birth_date date,
-  terms_accepted_at timestamptz,
-  created_at timestamptz not null default now()
-);
+---
 
-grant select, insert, update on public.profiles to authenticated;
-grant all on public.profiles to service_role;
+## Fase 4 — Integração externa de dados reais
 
-alter table public.profiles enable row level security;
+### 1. Camada de provedor (adapter)
+- `src/lib/providers/types.ts` — interface `OddsProvider` com `fetchUpcomingGames()` retornando o shape canônico já usado em `DemoGame`.
+- `src/lib/providers/the-odds-api.server.ts` — implementação real, lê `THE_ODDS_API_KEY` de `process.env`.
+- `src/lib/providers/index.server.ts` — seletor por `process.env.ODDS_PROVIDER` (default `the-odds-api`), fácil de trocar depois.
 
-create policy "Usuário lê o próprio perfil"
-  on public.profiles for select to authenticated
-  using (auth.uid() = id);
+### 2. Modelo no Supabase
+SQL que você roda no painel:
+- `games` (id, external_id, provider, competition, home, away, kickoff, updated_at).
+- `game_odds` (game_id, side, book, odd).
+- `game_reference` (game_id, home, draw, away) — média/mediana das casas, calculada na ingestão.
+- `sync_runs` (id, started_at, finished_at, provider, games_inserted, games_updated, error) — para auditoria.
+- RLS: leitura pública (`anon` + `authenticated`) somente nas tabelas de jogos/odds; `sync_runs` só admin.
 
-create policy "Usuário atualiza o próprio perfil"
-  on public.profiles for update to authenticated
-  using (auth.uid() = id);
+### 3. Ingestão (server functions + rota pública)
+- `src/lib/sync.functions.ts` → `syncGames` (`createServerFn`, middleware `requireSupabaseAuth` + check `has_role admin`) para o botão manual no painel Admin.
+- `src/routes/api/public/sync.ts` → endpoint para cron, protegido por header `x-sync-secret` (segredo `SYNC_SECRET` gerado via `generate_secret`).
+- Ambos chamam a mesma função interna `runSync(provider)` que: busca dados → upsert nas tabelas → calcula referência → grava `sync_runs`.
 
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, full_name, birth_date, terms_accepted_at)
-  values (
-    new.id,
-    new.raw_user_meta_data->>'full_name',
-    nullif(new.raw_user_meta_data->>'birth_date','')::date,
-    nullif(new.raw_user_meta_data->>'terms_accepted_at','')::timestamptz
-  );
-  return new;
-end;
-$$;
+### 4. Leitura no app
+- `src/lib/games.functions.ts` → `listGames` e `getGame` lendo de `games`/`game_odds`/`game_reference` via cliente publishable (server-side, com policy `TO anon SELECT`).
+- `src/routes/_authenticated/dashboard.tsx` e `jogos.$id.tsx`: trocar `DEMO_GAMES` por `useSuspenseQuery` chamando essas server fns. A regra de classificação (`classifyGame`) **não muda** — segue 100% objetiva.
+- Substituir demo por real: quando há ao menos 1 jogo real na janela, demos somem. Banner "Dados demonstrativos" some quando todos os cards forem reais.
+- Cada card mostra `updated_at` real (data/hora da última sincronização).
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-```
+### 5. Painel Admin de sincronização
+- `src/routes/_authenticated/admin.sincronizacao.tsx` (visível só com `effectiveIsAdmin`):
+  - Botão **Sincronizar agora**.
+  - Tabela com últimas 20 execuções (`sync_runs`): início, duração, provedor, inseridos/atualizados, erro.
+  - Status da chave: "configurada" / "ausente" (sem mostrar o valor).
 
-Recomendado também: em **Authentication → Providers → Email**, manter "Confirm email" ligado para reforçar o controle 18+.
+### 6. Cron
+- Stable URL `https://project--{id}.lovable.app/api/public/sync` com header `x-sync-secret`.
+- Forneço comando `pg_cron` pronto para você colar no Supabase (intervalo padrão 60 min).
 
-## 3. Validação
-Depois que você (a) preencher os secrets no formulário e (b) confirmar que rodou o SQL, eu verifico:
-- Build sem erros com as variáveis presentes.
-- Tela `/auth/cadastro` cria usuário no Supabase e popula `public.profiles`.
-- Tela `/auth/entrar` autentica e libera `/perfil`.
+### 7. Comunicação responsável (mantida)
+- Sem links para casas. Nome das casas exibido apenas como "Fonte A", "Fonte B"... ou o nome bruto sem URL — a definir com você quando aparecer a primeira chave.
+- Banner global "Dados demonstrativos" só aparece se a tabela `games` estiver vazia.
+- Toda card mostra timestamp real de atualização; se `> MAX_DATA_AGE_HOURS`, classifica como **Aguardar dados** (regra já existe).
 
-## Fora deste plano
-- Nenhuma mudança de UI, escopo ou regras de Fase 2 agora.
-- Nenhum uso de Lovable Cloud ou IA nativa — segue a diretriz do projeto.
-- Nenhum dado real ainda; segue tudo como Fase 1.
+### 8. Secrets necessários (peço quando você decidir o provedor)
+- `THE_ODDS_API_KEY` — chave do provedor (via `add_secret`).
+- `SYNC_SECRET` — gerado automaticamente (`generate_secret`) para autenticar o cron.
 
-Aprove para eu disparar o formulário seguro dos dois secrets.
+### Detalhes técnicos
+- Server fns para ingestão e leitura ficam em `src/lib/*.functions.ts`; provedor externo em `*.server.ts`.
+- Cliente publishable server-side para leitura pública (cumpre `tanstack-supabase-integration`).
+- `supabaseAdmin` carregado dentro do handler (nunca em escopo de módulo) para upserts.
+- TanStack Query: `queryOptions` + `ensureQueryData` no loader + `useSuspenseQuery` no componente.
+
+### Critérios de aceite
+- Botão Admin executa sync e popula `games`/`game_odds`/`game_reference`.
+- Cron consegue chamar `/api/public/sync` com o header secreto e gravar uma linha em `sync_runs`.
+- Painel deixa de mostrar dados demo assim que houver dados reais.
+- `classifyGame` continua decidindo status apenas por regras objetivas; nenhum uso de IA.
+- Erros do provedor não quebram o painel; caem em `Aguardar dados` / mantêm último snapshot bom.
+
+### Fora de escopo (Fase 5)
+- Escalações, lesões, estatísticas avançadas, novos mercados, IA externa opt-in, ranking, push notifications.
+
+---
+
+Aprovando este plano, eu começo pela camada do banco + adapter + leitura pública (sem precisar da chave ainda), e só peço a chave do The Odds API via formulário seguro quando chegarmos no passo de ingestão real.
