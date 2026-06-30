@@ -41,6 +41,13 @@ type ParticipantPayload =
   | Record<string, unknown>
   | null;
 
+type FixturePayload =
+  | OddsFixtureRow[]
+  | { data?: OddsFixtureRow[]; fixtures?: OddsFixtureRow[]; result?: OddsFixtureRow[] }
+  | OddsFixtureRow
+  | Record<string, unknown>
+  | null;
+
 interface OddsFixtureRow {
   fixtureId: string;
   participant1Id: number;
@@ -113,12 +120,30 @@ function asParticipantRows(payload: ParticipantPayload): ParticipantRow[] {
   return [];
 }
 
-async function fetchOddsWithRetry(url: string): Promise<Response> {
-  let res = await fetch(url, { headers: ODDSPAPI_HEADERS });
-  if (res.status !== 429) return res;
-  await wait(1_200);
-  res = await fetch(url, { headers: ODDSPAPI_HEADERS });
-  return res;
+function asFixtureRows(payload: FixturePayload): OddsFixtureRow[] {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  const record = payload as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data as OddsFixtureRow[];
+  if (Array.isArray(record.fixtures)) return record.fixtures as OddsFixtureRow[];
+  if (Array.isArray(record.result)) return record.result as OddsFixtureRow[];
+  if ("fixtureId" in record) return [payload as OddsFixtureRow];
+  return [];
+}
+
+async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+  let last: Response | null = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+    last = res;
+    if (res.status !== 429 && res.status < 500) return res;
+    if (attempt < attempts - 1) await wait(1_200 * (attempt + 1));
+  }
+  return last!;
+}
+
+async function responseText(res: Response): Promise<string> {
+  return res.text().catch(() => "");
 }
 
 export interface OddsPapiOptions {
@@ -140,9 +165,8 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
 
       // Valida os slugs de casas contra a lista viva do provedor. Um único slug
       // inválido faz o endpoint de odds retornar 400 e antes isso virava "0 jogos".
-      const booksRes = await fetch(
+      const booksRes = await fetchWithRetry(
         `${HOST}/v4/bookmakers?apiKey=${encodeURIComponent(apiKey)}`,
-        { headers: ODDSPAPI_HEADERS },
       );
       if (booksRes.ok) {
         const available = (await booksRes.json()) as BookmakerRow[];
@@ -152,20 +176,22 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         if (ignored.length > 0) {
           console.warn(`[oddspapi] casas ignoradas por slug inválido: ${ignored.join(",")}`);
         }
+      } else {
+        const body = await responseText(booksRes);
+        throw new Error(`OddsPapi não confirmou as casas disponíveis (${booksRes.status}). ${body.slice(0, 180)}`);
       }
       if (bookmakers.length === 0) {
         throw new Error("Nenhuma casa selecionada existe na OddsPapi. Use 'Listar torneios' e revise os slugs das casas.");
       }
 
       // 1) Lista torneios do esporte e filtra pelos slugs escolhidos.
-      const tournRes = await fetch(
+      const tournRes = await fetchWithRetry(
         `${HOST}/v4/tournaments?sportId=${SPORT_ID}&apiKey=${encodeURIComponent(apiKey)}`,
-        { headers: ODDSPAPI_HEADERS },
       );
       if (!tournRes.ok) {
-        const body = await tournRes.text().catch(() => "");
+        const body = await responseText(tournRes);
         console.error(`[oddspapi] tournaments -> ${tournRes.status} ${body.slice(0, 300)}`);
-        return [];
+        throw new Error(`OddsPapi não retornou a lista de torneios (${tournRes.status}). Tente novamente em alguns minutos.`);
       }
       const allTourns = (await tournRes.json()) as TournamentRow[];
       console.log(
@@ -206,19 +232,20 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         const oddsUrl =
           `${HOST}/v4/odds-by-tournaments?bookmaker=${encodeURIComponent(bookmaker)}` +
           `&tournamentIds=${encodeURIComponent(ids)}&language=pt&oddsFormat=decimal&apiKey=${encodeURIComponent(apiKey)}`;
-        const oddsRes = await fetchOddsWithRetry(oddsUrl);
+        const oddsRes = await fetchWithRetry(oddsUrl);
         if (!oddsRes.ok) {
           failedBookmakers++;
-          const body = await oddsRes.text().catch(() => "");
+          const body = await responseText(oddsRes);
           lastFailure = `${bookmaker}: ${oddsRes.status} ${body.slice(0, 180)}`;
           console.warn(`[oddspapi] odds-by-tournaments falhou para ${lastFailure}`);
           continue;
         }
 
-        const oddsJson = await oddsRes.json();
-        const rows = Array.isArray(oddsJson)
-          ? (oddsJson as OddsFixtureRow[])
-          : ([oddsJson] as OddsFixtureRow[]);
+        const oddsJson = (await oddsRes.json().catch(() => null)) as FixturePayload;
+        const rows = asFixtureRows(oddsJson);
+        if (rows.length === 0) {
+          console.warn(`[oddspapi] resposta sem fixtures para ${bookmaker}.`);
+        }
 
         for (const row of rows) {
           if (!row?.fixtureId) continue;
@@ -262,7 +289,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const nameByPart = new Map<number, string>();
 
       async function ingestParticipants(url: string) {
-        const res = await fetch(url, { headers: ODDSPAPI_HEADERS });
+        const res = await fetchWithRetry(url);
         if (!res.ok) return;
         const payload = (await res.json().catch(() => null)) as ParticipantPayload;
         for (const p of asParticipantRows(payload)) {
