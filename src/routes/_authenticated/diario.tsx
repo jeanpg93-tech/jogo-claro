@@ -159,13 +159,15 @@ function DiarioPage() {
         className="mt-8 grid gap-4 rounded-xl border border-border/60 bg-card p-5 md:grid-cols-2"
       >
         <div className="md:col-span-2">
-          <Label>Jogo demonstrativo</Label>
+          <Label>{usingDemo ? "Jogo demonstrativo" : "Jogo"}</Label>
           <Select value={gameId} onValueChange={setGameId}>
             <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Escolha um jogo do painel" />
+              <SelectValue
+                placeholder={usingDemo ? "Escolha um jogo demonstrativo" : "Escolha um jogo"}
+              />
             </SelectTrigger>
             <SelectContent>
-              {DEMO_GAMES.map((g) => (
+              {games.map((g) => (
                 <SelectItem key={g.id} value={g.id}>
                   {g.home} vs {g.away} — {g.competition}
                 </SelectItem>
