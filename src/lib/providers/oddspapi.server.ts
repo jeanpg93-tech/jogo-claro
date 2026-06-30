@@ -3,7 +3,7 @@
 // Lê ODDSPAPI_API_KEY do ambiente.
 import type { OddsProvider } from "./types";
 import type { Game, BookOdds } from "@/lib/demo-games";
-import { ODDSPAPI_TOURNAMENTS } from "@/lib/oddspapi-catalog";
+import { ODDSPAPI_TOURNAMENTS, ODDSPAPI_BOOKMAKERS } from "@/lib/oddspapi-catalog";
 import { ptTeam } from "@/lib/teams-pt";
 
 const HOST = "https://api.oddspapi.io";
