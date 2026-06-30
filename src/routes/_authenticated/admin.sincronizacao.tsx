@@ -350,18 +350,16 @@ function ProvidersPanel() {
   }
 
   return (
-    <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-      <h2 className="text-lg font-semibold">Provedores de odds</h2>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Ative ou desative cada fonte independentemente. Desligado = não consome cota
-        nem grava jogos.
-      </p>
+    <CollapsibleSection
+      title="Provedores de odds"
+      subtitle="Ative ou desative cada fonte independentemente. Desligado = não consome cota nem grava jogos."
+    >
       {loading ? (
-        <div className="mt-4 flex items-center text-sm text-muted-foreground">
+        <div className="flex items-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
         </div>
       ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {providers.map((p) => (
             <div
               key={p.name}
@@ -371,11 +369,7 @@ function ProvidersPanel() {
                 <div className="text-sm font-medium">{labelOf(p.name)}</div>
                 <div className="mt-0.5 text-[11px] text-muted-foreground">
                   Chave:{" "}
-                  <span
-                    className={
-                      p.keyConfigured ? "text-emerald-400" : "text-amber-400"
-                    }
-                  >
+                  <span className={p.keyConfigured ? "text-emerald-400" : "text-amber-400"}>
                     {p.keyConfigured ? "configurada" : "ausente"}
                   </span>
                 </div>
@@ -395,7 +389,7 @@ function ProvidersPanel() {
           ))}
         </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
