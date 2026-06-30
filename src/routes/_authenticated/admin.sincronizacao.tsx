@@ -1,10 +1,45 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Check, Copy, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      toast.success(`${label} copiado`);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Não foi possível copiar. Selecione e copie manualmente.");
+    }
+  }
+
+  return (
+    <button
+      onClick={copy}
+      className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+      title={`Copiar ${label}`}
+    >
+      {copied ? (
+        <>
+          <Check className="h-3 w-3 text-emerald-500" />
+          Copiado
+        </>
+      ) : (
+        <>
+          <Copy className="h-3 w-3" />
+          Copiar
+        </>
+      )}
+    </button>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/admin/sincronizacao")({
   head: () => ({ meta: [{ title: "Sincronização — Admin · Visão de Jogo" }] }),
