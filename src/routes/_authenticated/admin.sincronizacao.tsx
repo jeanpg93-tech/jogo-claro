@@ -209,56 +209,82 @@ function AdminSyncPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-border/60 bg-card">
-        <div className="grid grid-cols-12 border-b border-border/60 px-4 py-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          <div className="col-span-3">Início</div>
-          <div className="col-span-2">Duração</div>
-          <div className="col-span-2">Provedor</div>
-          <div className="col-span-1 text-right">Novos</div>
-          <div className="col-span-1 text-right">Atualizados</div>
-          <div className="col-span-3">Status</div>
-        </div>
-        {runs?.length === 0 && (
-          <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-            Nenhuma sincronização registrada ainda.
+      <CollapsibleSection
+        title="Histórico de sincronizações"
+        subtitle="Últimas execuções (manuais e via cron)."
+        badge={
+          runs && (
+            <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
+              {runs.length}
+            </span>
+          )
+        }
+        className="!mt-6 !p-0"
+      >
+        <div className="-mx-5 -mb-5 rounded-b-xl border-t border-border/60">
+          <div className="grid grid-cols-12 border-b border-border/60 px-4 py-2 text-[11px] uppercase tracking-widest text-muted-foreground">
+            <div className="col-span-3">Início</div>
+            <div className="col-span-2">Duração</div>
+            <div className="col-span-2">Provedor</div>
+            <div className="col-span-1 text-right">Novos</div>
+            <div className="col-span-2 text-right">Atualizados</div>
+            <div className="col-span-2 text-right">Status</div>
           </div>
-        )}
-        {runs?.map((r) => {
-          const dur = r.finished_at
-            ? Math.max(
-                0,
-                new Date(r.finished_at).getTime() - new Date(r.started_at).getTime(),
-              )
-            : null;
-          return (
-            <div
-              key={r.id}
-              className="grid grid-cols-12 items-center border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
-            >
-              <div className="col-span-3 text-xs">
-                {new Date(r.started_at).toLocaleString("pt-BR")}
-              </div>
-              <div className="col-span-2 text-xs tabular-nums">
-                {dur !== null ? `${(dur / 1000).toFixed(1)}s` : "—"}
-              </div>
-              <div className="col-span-2 text-xs">{r.provider}</div>
-              <div className="col-span-1 text-right tabular-nums">{r.games_inserted}</div>
-              <div className="col-span-1 text-right tabular-nums">{r.games_updated}</div>
-              <div className="col-span-3">
-                {r.error ? (
-                  <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] text-red-300">
-                    Erro: {r.error.slice(0, 60)}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
-                    OK
-                  </span>
-                )}
-              </div>
+          {runs?.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Nenhuma sincronização registrada ainda.
             </div>
-          );
-        })}
-      </div>
+          )}
+          {(showAllRuns ? runs : runs?.slice(0, 5))?.map((r) => {
+            const dur = r.finished_at
+              ? Math.max(
+                  0,
+                  new Date(r.finished_at).getTime() - new Date(r.started_at).getTime(),
+                )
+              : null;
+            return (
+              <div
+                key={r.id}
+                className="grid grid-cols-12 items-center border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
+              >
+                <div className="col-span-3 text-xs">
+                  {new Date(r.started_at).toLocaleString("pt-BR")}
+                </div>
+                <div className="col-span-2 text-xs tabular-nums">
+                  {dur !== null ? `${(dur / 1000).toFixed(1)}s` : "—"}
+                </div>
+                <div className="col-span-2 text-xs">{r.provider}</div>
+                <div className="col-span-1 text-right tabular-nums">{r.games_inserted}</div>
+                <div className="col-span-2 text-right tabular-nums">{r.games_updated}</div>
+                <div className="col-span-2 flex justify-end">
+                  {r.error ? (
+                    <span
+                      title={r.error}
+                      className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] text-red-300"
+                    >
+                      Erro
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
+                      OK
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {runs && runs.length > 5 && (
+            <div className="border-t border-border/40 px-4 py-2 text-center">
+              <button
+                onClick={() => setShowAllRuns((v) => !v)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {showAllRuns ? "Mostrar menos" : `Ver todas (${runs.length})`}
+              </button>
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
 
       <ProvidersPanel />
 
