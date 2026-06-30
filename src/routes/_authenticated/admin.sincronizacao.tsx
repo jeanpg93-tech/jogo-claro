@@ -415,12 +415,16 @@ function OddsPapiSelector() {
       .then((r) => {
         const op = r.providers.find((p) => p.name === "oddspapi");
         setEnabled(Boolean(op?.enabled));
-        const t = r.oddspapi.tournaments.length > 0
+        const validTournaments = new Set(ODDSPAPI_TOURNAMENTS.map((x) => x.slug));
+        const validBookmakers = new Set(ODDSPAPI_BOOKMAKERS.map((x) => x.slug));
+        const t = (r.oddspapi.tournaments.length > 0
           ? r.oddspapi.tournaments
-          : DEFAULT_ODDSPAPI_TOURNAMENTS;
-        const b = r.oddspapi.bookmakers.length > 0
+          : DEFAULT_ODDSPAPI_TOURNAMENTS
+        ).filter((s) => validTournaments.has(s));
+        const b = (r.oddspapi.bookmakers.length > 0
           ? r.oddspapi.bookmakers
-          : DEFAULT_ODDSPAPI_BOOKMAKERS;
+          : DEFAULT_ODDSPAPI_BOOKMAKERS
+        ).filter((s) => validBookmakers.has(s));
         setTournaments(new Set(t));
         setBookmakers(new Set(b));
       })
