@@ -260,9 +260,12 @@ function extractV5Books(row: OddsPapiFixtureRow, requestedBookmakers: string[]):
       bySide[side] = quote.price;
     }
 
-    if (bySide.home && bySide.draw && bySide.away) {
+    const home = bySide.home;
+    const draw = bySide.draw;
+    const away = bySide.away;
+    if (home && draw && away) {
       const label = ODDSPAPI_BOOKMAKERS.find((b) => b.slug === bmKey)?.label ?? meta?.bookmaker ?? bmKey;
-      books.push({ book: label, home: bySide.home, draw: bySide.draw, away: bySide.away });
+      books.push({ book: label, home, draw, away });
     }
   }
 
