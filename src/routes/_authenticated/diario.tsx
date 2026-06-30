@@ -74,7 +74,10 @@ function DiarioPage() {
   const [confidence, setConfidence] = useState<number>(3);
   const [notes, setNotes] = useState("");
 
-  const selectedGame: DemoGame | undefined = DEMO_GAMES.find((g) => g.id === gameId);
+  const { data: gamesData } = useGames();
+  const games: Game[] = useMemo(() => gamesData?.games ?? [], [gamesData]);
+  const usingDemo = gamesData?.usingDemo ?? true;
+  const selectedGame: Game | undefined = games.find((g) => g.id === gameId);
 
   async function load() {
     if (!user) return;
