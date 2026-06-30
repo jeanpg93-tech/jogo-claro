@@ -9,6 +9,14 @@ import { ptTeam } from "@/lib/teams-pt";
 const HOST = "https://api.oddspapi.io";
 const SPORT_ID = 10; // futebol
 
+// OddsPapi roda atrás de Cloudflare e bloqueia requisições sem User-Agent
+// reconhecível (Workers/SSR enviam UA vazio → 403 Forbidden). Forçamos
+// cabeçalhos explícitos em todas as chamadas.
+export const ODDSPAPI_HEADERS: HeadersInit = {
+  "User-Agent": "VisaoDeJogo/1.0 (+https://visaodejogo.lovable.app)",
+  Accept: "application/json",
+};
+
 interface TournamentRow {
   tournamentId: number;
   tournamentSlug: string;
