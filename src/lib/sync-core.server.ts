@@ -38,7 +38,8 @@ export async function runSync(): Promise<SyncResult> {
   let error: string | undefined;
 
   try {
-    const games = await provider.fetchUpcomingGames();
+    const selectedSports = await getSelectedSports(admin);
+    const games = await provider.fetchUpcomingGames(selectedSports);
     // Para cada jogo, upsert em games (por provider+external_id), depois substitui odds e reference.
     for (const g of games) {
       const { data: existing } = await admin
@@ -147,4 +148,34 @@ export async function verifyAdminFromToken(token: string): Promise<boolean> {
     .select("role")
     .eq("user_id", data.user.id);
   return Boolean(roles?.some((r) => r.role === "admin"));
+}
+
+async function getSelectedSports(
+  admin: ReturnType<typeof getAdmin>,
+): Promise<string[] | undefined> {
+  const { data } = await admin
+    .from("app_settings")
+    .select("value")
+    .eq("key", "selected_sports")
+    .maybeSingle();
+  const value = (data?.value ?? null) as { sports?: string[] } | null;
+  if (value && Array.isArray(value.sports) && value.sports.length > 0) {
+    return value.sports;
+  }
+  return undefined;
+}
+
+export async function getSelectedSportsAdmin(): Promise<string[]> {
+  const admin = getAdmin();
+  const list = await getSelectedSports(admin);
+  return list ?? [];
+}
+
+export async function setSelectedSportsAdmin(sports: string[]): Promise<void> {
+  const admin = getAdmin();
+  const { error } = await admin.from("app_settings").upsert(
+    { key: "selected_sports", value: { sports } },
+    { onConflict: "key" },
+  );
+  if (error) throw new Error(error.message);
 }

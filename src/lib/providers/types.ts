@@ -7,5 +7,5 @@ import type { Game } from "@/lib/demo-games";
  */
 export interface OddsProvider {
   name: string;
-  fetchUpcomingGames(): Promise<Game[]>;
+  fetchUpcomingGames(sports?: string[]): Promise<Game[]>;
 }

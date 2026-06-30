@@ -22,6 +22,7 @@ import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedDiarioRouteImport } from './routes/_authenticated/diario'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
+import { Route as ApiAdminSyncSettingsRouteImport } from './routes/api/admin/sync-settings'
 import { Route as ApiAdminSyncRouteImport } from './routes/api/admin/sync'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 import { Route as AuthenticatedAdminSincronizacaoRouteImport } from './routes/_authenticated/admin.sincronizacao'
@@ -90,6 +91,11 @@ const ApiPublicSyncRoute = ApiPublicSyncRouteImport.update({
   path: '/api/public/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminSyncSettingsRoute = ApiAdminSyncSettingsRouteImport.update({
+  id: '/api/admin/sync-settings',
+  path: '/api/admin/sync-settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminSyncRoute = ApiAdminSyncRouteImport.update({
   id: '/api/admin/sync',
   path: '/api/admin/sync',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
+  '/api/admin/sync-settings': typeof ApiAdminSyncSettingsRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesByTo {
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
+  '/api/admin/sync-settings': typeof ApiAdminSyncSettingsRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesById {
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
+  '/api/admin/sync-settings': typeof ApiAdminSyncSettingsRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRouteTypes {
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/admin/sincronizacao'
     | '/jogos/$id'
     | '/api/admin/sync'
+    | '/api/admin/sync-settings'
     | '/api/public/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin/sincronizacao'
     | '/jogos/$id'
     | '/api/admin/sync'
+    | '/api/admin/sync-settings'
     | '/api/public/sync'
   id:
     | '__root__'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/sincronizacao'
     | '/_authenticated/jogos/$id'
     | '/api/admin/sync'
+    | '/api/admin/sync-settings'
     | '/api/public/sync'
   fileRoutesById: FileRoutesById
 }
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
   ApiAdminSyncRoute: typeof ApiAdminSyncRoute
+  ApiAdminSyncSettingsRoute: typeof ApiAdminSyncSettingsRoute
   ApiPublicSyncRoute: typeof ApiPublicSyncRoute
 }
 
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/sync-settings': {
+      id: '/api/admin/sync-settings'
+      path: '/api/admin/sync-settings'
+      fullPath: '/api/admin/sync-settings'
+      preLoaderRoute: typeof ApiAdminSyncSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/sync': {
       id: '/api/admin/sync'
       path: '/api/admin/sync'
@@ -384,6 +404,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
   ApiAdminSyncRoute: ApiAdminSyncRoute,
+  ApiAdminSyncSettingsRoute: ApiAdminSyncSettingsRoute,
   ApiPublicSyncRoute: ApiPublicSyncRoute,
 }
 export const routeTree = rootRouteImport

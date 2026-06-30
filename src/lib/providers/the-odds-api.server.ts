@@ -4,20 +4,8 @@ import type { OddsProvider } from "./types";
 import type { Game, BookOdds } from "@/lib/demo-games";
 
 // Esportes alvo iniciais. Pode expandir via env ODDS_SPORTS (CSV).
-const DEFAULT_SPORTS = [
-  // Copa do Mundo FIFA 2026 (em andamento)
-  "soccer_fifa_world_cup",
-  "soccer_fifa_world_cup_winner",
-  // Campeonatos nacionais e continentais
-  "soccer_brazil_campeonato",
-  "soccer_brazil_serie_b",
-  "soccer_uefa_champs_league",
-  "soccer_uefa_europa_league",
-  "soccer_conmebol_copa_libertadores",
-  "soccer_epl",
-  "soccer_spain_la_liga",
-  "soccer_italy_serie_a",
-];
+// Default usado apenas como fallback se nenhuma lista for fornecida.
+const FALLBACK_SPORTS = ["soccer_fifa_world_cup"];
 
 interface TheOddsApiEvent {
   id: string;
@@ -46,13 +34,15 @@ function median(nums: number[]): number {
 export function createTheOddsApiProvider(): OddsProvider {
   return {
     name: "the-odds-api",
-    async fetchUpcomingGames(): Promise<Game[]> {
+    async fetchUpcomingGames(selectedSports?: string[]): Promise<Game[]> {
       const apiKey = process.env.THE_ODDS_API_KEY;
       if (!apiKey) throw new Error("THE_ODDS_API_KEY não configurada.");
 
       const sports =
-        (process.env.ODDS_SPORTS?.split(",").map((s) => s.trim()).filter(Boolean)) ??
-        DEFAULT_SPORTS;
+        selectedSports && selectedSports.length > 0
+          ? selectedSports
+          : (process.env.ODDS_SPORTS?.split(",").map((s) => s.trim()).filter(Boolean)) ??
+            FALLBACK_SPORTS;
 
       const games: Game[] = [];
 
