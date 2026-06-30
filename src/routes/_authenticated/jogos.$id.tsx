@@ -59,6 +59,21 @@ function JogoDetailPage() {
 function GameDetail({ game }: { game: Game }) {
   const c = classifyGame(game);
   const meta = STATUS_META[c.status];
+  const defaultSide: Side = c.best?.side ?? "home";
+  const [pickSide, setPickSide] = useState<Side>(defaultSide);
+  const [pickBook, setPickBook] = useState<string | null>(
+    game.books[0]?.book ?? null,
+  );
+  const pickedBook = useMemo(
+    () => game.books.find((b) => b.book === pickBook) ?? null,
+    [game.books, pickBook],
+  );
+  const pickedOdd = pickedBook ? pickedBook[pickSide] : null;
+  const refOdd = game.reference ? game.reference[pickSide] : null;
+  const pickedEdgePp =
+    pickedOdd && refOdd
+      ? (impliedProb(refOdd) - impliedProb(pickedOdd)) * 100
+      : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
