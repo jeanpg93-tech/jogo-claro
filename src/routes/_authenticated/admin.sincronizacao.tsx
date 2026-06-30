@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -23,17 +23,10 @@ interface SyncRun {
 }
 
 function AdminSyncPage() {
-  const { effectiveIsAdmin, isAdmin, loading } = useRole();
+  const { effectiveIsAdmin } = useRole();
   const [runs, setRuns] = useState<SyncRun[] | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!isAdmin) {
-      throw redirect({ to: "/dashboard" });
-    }
-  }, [isAdmin, loading]);
 
   async function load() {
     setRefreshing(true);

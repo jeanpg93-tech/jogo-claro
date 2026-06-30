@@ -24,6 +24,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
 import { Route as ApiAdminSyncRouteImport } from './routes/api/admin/sync'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
+import { Route as AuthenticatedAdminSincronizacaoRouteImport } from './routes/_authenticated/admin.sincronizacao'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -99,6 +100,12 @@ const AuthenticatedJogosIdRoute = AuthenticatedJogosIdRouteImport.update({
   path: '/jogos/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminSincronizacaoRoute =
+  AuthenticatedAdminSincronizacaoRouteImport.update({
+    id: '/admin/sincronizacao',
+    path: '/admin/sincronizacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -128,6 +136,7 @@ export interface FileRoutesByTo {
   '/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -146,6 +155,7 @@ export interface FileRoutesById {
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/admin/sincronizacao'
     | '/jogos/$id'
     | '/api/admin/sync'
     | '/api/public/sync'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/admin/sincronizacao'
     | '/jogos/$id'
     | '/api/admin/sync'
     | '/api/public/sync'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
     | '/_authenticated/perfil'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/_authenticated/admin/sincronizacao'
     | '/_authenticated/jogos/$id'
     | '/api/admin/sync'
     | '/api/public/sync'
@@ -321,6 +334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedJogosIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/sincronizacao': {
+      id: '/_authenticated/admin/sincronizacao'
+      path: '/admin/sincronizacao'
+      fullPath: '/admin/sincronizacao'
+      preLoaderRoute: typeof AuthenticatedAdminSincronizacaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -328,6 +348,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDiarioRoute: typeof AuthenticatedDiarioRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedAdminSincronizacaoRoute: typeof AuthenticatedAdminSincronizacaoRoute
   AuthenticatedJogosIdRoute: typeof AuthenticatedJogosIdRoute
 }
 
@@ -335,6 +356,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDiarioRoute: AuthenticatedDiarioRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedAdminSincronizacaoRoute: AuthenticatedAdminSincronizacaoRoute,
   AuthenticatedJogosIdRoute: AuthenticatedJogosIdRoute,
 }
 
