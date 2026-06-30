@@ -11,6 +11,7 @@ import { SPORTS_CATALOG, DEFAULT_SELECTED_SPORTS } from "./sports-catalog";
 import {
   DEFAULT_ODDSPAPI_BOOKMAKERS,
   DEFAULT_ODDSPAPI_TOURNAMENTS,
+  ODDSPAPI_BOOKMAKERS,
   ODDSPAPI_TOURNAMENTS,
 } from "./oddspapi-catalog";
 
@@ -72,11 +73,11 @@ export async function runSync(): Promise<MultiSyncResult> {
     const bcfg = await getJsonSetting<{ bookmakers: string[] }>(admin, "oddspapi_bookmakers");
     const tournaments =
       tcfg?.tournaments && tcfg.tournaments.length > 0
-        ? tcfg.tournaments
+        ? tcfg.tournaments.filter((slug) => ODDSPAPI_TOURNAMENTS.some((t) => t.slug === slug))
         : DEFAULT_ODDSPAPI_TOURNAMENTS;
     const bookmakers =
       bcfg?.bookmakers && bcfg.bookmakers.length > 0
-        ? bcfg.bookmakers
+        ? bcfg.bookmakers.filter((slug) => ODDSPAPI_BOOKMAKERS.some((b) => b.slug === slug))
         : DEFAULT_ODDSPAPI_BOOKMAKERS;
     const activeLabels = tournaments
       .map((slug) => ODDSPAPI_TOURNAMENTS.find((t) => t.slug === slug)?.label)
