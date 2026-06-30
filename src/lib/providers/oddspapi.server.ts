@@ -24,6 +24,11 @@ interface TournamentRow {
   categoryName?: string;
 }
 
+interface BookmakerRow {
+  bookmakerName: string;
+  slug: string;
+}
+
 interface ParticipantRow {
   participantId: number;
   participantName: string;
@@ -64,6 +69,12 @@ function ptCompetition(slug: string, fallback: string): string {
   return ODDSPAPI_TOURNAMENTS.find((t) => t.slug === slug)?.label ?? fallback;
 }
 
+function uniqueById(rows: TournamentRow[]): TournamentRow[] {
+  const byId = new Map<number, TournamentRow>();
+  for (const row of rows) byId.set(row.tournamentId, row);
+  return Array.from(byId.values());
+}
+
 export interface OddsPapiOptions {
   tournaments?: string[]; // slugs selecionados
   bookmakers?: string[]; // slugs selecionados
@@ -76,9 +87,29 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const apiKey = process.env.ODDSPAPI_API_KEY;
       if (!apiKey) throw new Error("ODDSPAPI_API_KEY não configurada.");
 
-      const tournamentSlugs = (opts.tournaments ?? []).filter(Boolean);
-      const bookmakers = (opts.bookmakers ?? []).filter(Boolean);
+      const tournamentSlugs = Array.from(new Set((opts.tournaments ?? []).filter(Boolean)));
+      const requestedBookmakers = Array.from(new Set((opts.bookmakers ?? []).filter(Boolean)));
+      let bookmakers = requestedBookmakers;
       if (tournamentSlugs.length === 0 || bookmakers.length === 0) return [];
+
+      // Valida os slugs de casas contra a lista viva do provedor. Um único slug
+      // inválido faz o endpoint de odds retornar 400 e antes isso virava "0 jogos".
+      const booksRes = await fetch(
+        `${HOST}/v4/bookmakers?apiKey=${encodeURIComponent(apiKey)}`,
+        { headers: ODDSPAPI_HEADERS },
+      );
+      if (booksRes.ok) {
+        const available = (await booksRes.json()) as BookmakerRow[];
+        const valid = new Set(available.map((b) => b.slug));
+        bookmakers = requestedBookmakers.filter((b) => valid.has(b));
+        const ignored = requestedBookmakers.filter((b) => !valid.has(b));
+        if (ignored.length > 0) {
+          console.warn(`[oddspapi] casas ignoradas por slug inválido: ${ignored.join(",")}`);
+        }
+      }
+      if (bookmakers.length === 0) {
+        throw new Error("Nenhuma casa selecionada existe na OddsPapi. Use 'Listar torneios' e revise os slugs das casas.");
+      }
 
       // 1) Lista torneios do esporte e filtra pelos slugs escolhidos.
       const tournRes = await fetch(
@@ -94,7 +125,9 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       console.log(
         `[oddspapi] torneios retornados: ${allTourns.length}; slugs solicitados: ${tournamentSlugs.join(",")}`,
       );
-      const selected = allTourns.filter((t) => tournamentSlugs.includes(t.tournamentSlug));
+      const selected = uniqueById(
+        allTourns.filter((t) => tournamentSlugs.includes(t.tournamentSlug)),
+      );
       if (selected.length === 0) {
         const sample = allTourns
           .slice(0, 40)
@@ -114,14 +147,19 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
 
       // 2) Odds por torneio (uma chamada com todos os tournamentIds e bookmakers).
       const oddsUrl =
-        `${HOST}/v4/odds-by-tournaments?bookmaker=${bookmakers.join(",")}` +
-        `&tournamentIds=${ids}&apiKey=${encodeURIComponent(apiKey)}`;
+        `${HOST}/v4/odds-by-tournaments?bookmakers=${encodeURIComponent(bookmakers.join(","))}` +
+        `&tournamentIds=${encodeURIComponent(ids)}&language=pt&oddsFormat=decimal&apiKey=${encodeURIComponent(apiKey)}`;
       const oddsRes = await fetch(oddsUrl, { headers: ODDSPAPI_HEADERS });
       if (!oddsRes.ok) {
-        console.error(`[oddspapi] odds-by-tournaments -> ${oddsRes.status}`);
-        return [];
+        const body = await oddsRes.text().catch(() => "");
+        throw new Error(
+          `OddsPapi odds-by-tournaments retornou ${oddsRes.status}: ${body.slice(0, 240)}`,
+        );
       }
-      const fixtures = (await oddsRes.json()) as OddsFixtureRow[];
+      const oddsJson = await oddsRes.json();
+      const fixtures = Array.isArray(oddsJson)
+        ? (oddsJson as OddsFixtureRow[])
+        : ([oddsJson] as OddsFixtureRow[]);
       if (fixtures.length === 0) return [];
 
       // 3) Mapa de participantes (uma chamada para o esporte).
