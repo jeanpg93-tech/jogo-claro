@@ -1,7 +1,11 @@
 // Adapter OddsPapi.
-// A documentação atual usa o host v5 (https://v5.oddspapi.io/en) e endpoints REST
-// como /tournaments, /bookmakers e /fixtures/odds/main. Mantemos leitura tolerante
-// ao payload v4 antigo para não quebrar respostas legadas.
+// Revisado contra a chave real disponível no ambiente: esta conta responde na API v4
+// (https://api.oddspapi.io/v4). A API v5 retornou invalid_api_key para a mesma chave,
+// então o sync principal fica em v4, usando:
+// - /tournaments?sportId=10
+// - /bookmakers
+// - /odds-by-tournaments?bookmaker=<slug>&tournamentIds=<ids>
+// - /participants?sportId=10
 // Apenas futebol (sportId=10), mercado 1X2 (home/draw/away).
 // Lê ODDSPAPI_API_KEY do ambiente.
 import type { OddsProvider } from "./types";
@@ -9,7 +13,7 @@ import type { Game, BookOdds } from "@/lib/demo-games";
 import { ODDSPAPI_TOURNAMENTS, ODDSPAPI_BOOKMAKERS } from "@/lib/oddspapi-catalog";
 import { ptTeam } from "@/lib/teams-pt";
 
-const HOST = "https://v5.oddspapi.io/en";
+const HOST = "https://api.oddspapi.io/v4";
 const SPORT_ID = 10; // futebol
 
 // OddsPapi roda atrás de Cloudflare e bloqueia requisições sem User-Agent
@@ -183,7 +187,10 @@ function asParticipantRows(payload: ParticipantPayload): ParticipantRow[] {
   if (Array.isArray(payload.data)) return payload.data;
   if (Array.isArray(payload.participants)) return payload.participants;
   if (Array.isArray(payload.result)) return payload.result;
-  return [];
+  // v4 /participants?sportId=10 retorna um mapa { "4481": "Brasil", ... }.
+  return Object.entries(payload)
+    .filter(([id, name]) => /^\d+$/.test(id) && typeof name === "string")
+    .map(([id, name]) => ({ participantId: Number(id), participantName: name as string }));
 }
 
 function asFixtureRows(payload: FixturePayload): Array<OddsFixtureRow | OddsPapiFixtureRow> {
@@ -369,13 +376,13 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       const nameById = new Map(selected.map((t) => [t.tournamentId, t.tournamentName]));
       const ids = selected.map((t) => t.tournamentId).join(",");
 
-      // 2) Odds por torneio. Na API atual, /fixtures/odds/main aceita um
-      // tournamentId por chamada e múltiplas casas no parâmetro `bookmakers`.
-      // Esse caminho evita os 403 observados no endpoint v4 antigo.
+      // 2) Odds por casa. Na v4, o endpoint correto documentado/validado é
+      // /odds-by-tournaments com `bookmaker` no singular e `tournamentIds`.
+      // Algumas casas *.bet.br podem retornar 403 RESTRICTED_ACCESS no plano atual;
+      // nesses casos ignoramos só aquela casa e seguimos com as demais.
       const fixturesById = new Map<string, OddsFixtureRow | OddsPapiFixtureRow>();
-      let failedTournaments = 0;
+      let successfulRequests = 0;
       let lastFailure = "";
-      const bookmakerParam = bookmakers.join(",");
 
       const mergeFixtureRows = (rows: Array<OddsFixtureRow | OddsPapiFixtureRow>) => {
         for (const row of rows) {
@@ -401,57 +408,30 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         }
       };
 
-      for (const [index, tournament] of selected.entries()) {
-        if (index > 0) await wait(1_100);
-        const oddsUrl = apiUrl("/fixtures/odds/main", {
-          tournamentId: tournament.tournamentId,
-          bookmakers: bookmakerParam,
+      for (const [bookIndex, bookmaker] of bookmakers.entries()) {
+        if (bookIndex > 0) await wait(1_100);
+        const oddsUrl = apiUrl("/odds-by-tournaments", {
+          bookmaker,
+          tournamentIds: ids,
           apiKey,
         });
         const oddsRes = await fetchWithRetry(oddsUrl);
         if (!oddsRes.ok) {
           const body = await responseText(oddsRes);
-          lastFailure = `${tournament.tournamentSlug}: ${oddsRes.status} ${body.slice(0, 180)}`;
-          console.warn(
-            `[oddspapi] fixtures/odds/main falhou para lista de casas (${lastFailure}). ` +
-              "Tentando casa por casa.",
-          );
-
-          let recoveredRows = 0;
-          for (const [bookIndex, bookmaker] of bookmakers.entries()) {
-            if (bookIndex > 0) await wait(1_100);
-            const singleUrl = apiUrl("/fixtures/odds/main", {
-              tournamentId: tournament.tournamentId,
-              bookmakers: bookmaker,
-              apiKey,
-            });
-            const singleRes = await fetchWithRetry(singleUrl);
-            if (!singleRes.ok) {
-              const singleBody = await responseText(singleRes);
-              lastFailure = `${tournament.tournamentSlug}/${bookmaker}: ${singleRes.status} ${singleBody.slice(0, 180)}`;
-              console.warn(`[oddspapi] casa ignorada: ${lastFailure}`);
-              continue;
-            }
-            const singleJson = (await singleRes.json().catch(() => null)) as FixturePayload;
-            const singleRows = asFixtureRows(singleJson);
-            recoveredRows += singleRows.length;
-            mergeFixtureRows(singleRows);
-          }
-
-          if (recoveredRows === 0) failedTournaments++;
+          lastFailure = `${bookmaker}: ${oddsRes.status} ${body.slice(0, 180)}`;
+          console.warn(`[oddspapi] casa ignorada em odds-by-tournaments: ${lastFailure}`);
           continue;
         }
 
+        successfulRequests++;
         const oddsJson = (await oddsRes.json().catch(() => null)) as FixturePayload;
         const rows = asFixtureRows(oddsJson);
-        if (rows.length === 0) {
-          console.warn(`[oddspapi] resposta sem fixtures para ${tournament.tournamentSlug}.`);
-        }
+        if (rows.length === 0) console.warn(`[oddspapi] resposta sem fixtures para ${bookmaker}.`);
         mergeFixtureRows(rows);
       }
 
-      if (fixturesById.size === 0 && failedTournaments === selected.length) {
-        throw new Error(`OddsPapi não retornou odds para nenhum torneio. Último erro: ${lastFailure}`);
+      if (fixturesById.size === 0 && successfulRequests === 0) {
+        throw new Error(`OddsPapi não retornou odds para nenhuma casa selecionada. Último erro: ${lastFailure}`);
       }
 
       const fixtures = Array.from(fixturesById.values());
@@ -491,6 +471,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       if (neededIds.size > 0) {
         await ingestParticipants(
           apiUrl("/participants", {
+            sportId: SPORT_ID,
             participantIds: Array.from(neededIds).join(","),
             apiKey,
           }),
