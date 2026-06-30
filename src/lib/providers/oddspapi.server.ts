@@ -566,23 +566,35 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         console.warn("[oddspapi] fallback /odds por fixture ativado.");
         for (const [index, fixture] of discoveredFixtures.entries()) {
           if (index > 0) await wait(1_100);
-          const res = await fetchWithRetry(
-            apiUrl("/odds", {
-              fixtureId: fixture.fixtureId,
-              bookmakers: bookmakers.join(","),
-              language: "pt",
-              verbosity: 3,
-              apiKey,
-            }),
-          );
-          if (!res.ok) {
-            const body = await responseText(res);
-            lastFailure = `${fixture.fixtureId}: ${res.status} ${body.slice(0, 180)}`;
-            console.warn(`[oddspapi] odds fixture ignorada: ${lastFailure}`);
-            continue;
+          async function fetchFixtureOdds(bookmakerList: string[], label: string) {
+            const res = await fetchWithRetry(
+              apiUrl("/odds", {
+                fixtureId: fixture.fixtureId,
+                bookmakers: bookmakerList.join(","),
+                language: "pt",
+                verbosity: 3,
+                apiKey,
+              }),
+            );
+            if (!res.ok) {
+              const body = await responseText(res);
+              lastFailure = `${fixture.fixtureId}/${label}: ${res.status} ${body.slice(0, 180)}`;
+              return false;
+            }
+            successfulRequests++;
+            mergeFixtureRows(asFixtureRows((await res.json().catch(() => null)) as FixturePayload));
+            return true;
           }
-          successfulRequests++;
-          mergeFixtureRows(asFixtureRows((await res.json().catch(() => null)) as FixturePayload));
+
+          const ok = await fetchFixtureOdds(bookmakers, "lote");
+          if (!ok) {
+            console.warn(`[oddspapi] odds fixture em lote ignorada: ${lastFailure}`);
+            for (const bookmaker of bookmakers) {
+              await wait(1_100);
+              const singleOk = await fetchFixtureOdds([bookmaker], bookmaker);
+              if (!singleOk) console.warn(`[oddspapi] odds fixture/casa ignorada: ${lastFailure}`);
+            }
+          }
         }
       }
 
