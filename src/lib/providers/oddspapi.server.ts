@@ -385,7 +385,7 @@ async function fetchFixtureDiscovery(apiKey: string, tournamentSlugs: string[]):
   // A documentação de /fixtures limita janelas quando usamos sportId+from+to.
   // Usamos blocos de 5 dias para ficar abaixo do limite e cobrir a Copa/rodadas futuras.
   const from = addDays(new Date(), -1);
-  const until = addDays(new Date(), 35);
+  const until = addDays(new Date(), 24);
   const discovered = new Map<string, FixtureListRow>();
   let cursor = from;
   let failures = 0;
