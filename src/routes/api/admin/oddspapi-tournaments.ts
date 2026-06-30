@@ -22,35 +22,49 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
           );
         }
         const { ODDSPAPI_HEADERS } = await import("@/lib/providers/oddspapi.server");
-        const url = new URL("https://v5.oddspapi.io/en/tournaments");
-        url.searchParams.set("sportId", "10");
-        url.searchParams.set("apiKey", apiKey);
-        const res = await fetch(url, { headers: ODDSPAPI_HEADERS });
-        const text = await res.text();
-        if (!res.ok) {
+        const urls = [
+          new URL("https://v5.oddspapi.io/en/tournaments"),
+          new URL("https://api.oddspapi.io/v4/tournaments"),
+        ];
+        let lastStatus = 0;
+        let lastText = "";
+
+        for (const url of urls) {
+          url.searchParams.set("sportId", "10");
+          url.searchParams.set("apiKey", apiKey);
+          const res = await fetch(url.toString(), { headers: ODDSPAPI_HEADERS });
+          const text = await res.text();
+          if (res.ok) {
+            const data = JSON.parse(text) as Array<{
+              tournamentId: number;
+              tournamentSlug: string;
+              tournamentName: string;
+              categoryName?: string;
+              futureFixtures?: number;
+              upcomingFixtures?: number;
+              liveFixtures?: number;
+            }>;
+            return Response.json({ ok: true, count: data.length, tournaments: data });
+          }
+          lastStatus = res.status;
+          lastText = text;
+        }
+
+        if (lastStatus) {
           return Response.json(
             {
               ok: false,
-              status: res.status,
+              status: lastStatus,
               error:
-                res.status === 403
+                lastStatus === 403
                   ? "A OddsPapi negou acesso ao catálogo de torneios para esta chave. A sincronização ainda pode funcionar com os torneios selecionados."
-                  : `OddsPapi retornou erro ${res.status}.`,
-              body: text.slice(0, 1000),
+                  : `OddsPapi retornou erro ${lastStatus}.`,
+              body: lastText.slice(0, 1000),
             },
             { status: 502 },
           );
         }
-        const data = JSON.parse(text) as Array<{
-          tournamentId: number;
-          tournamentSlug: string;
-          tournamentName: string;
-          categoryName?: string;
-          futureFixtures?: number;
-          upcomingFixtures?: number;
-          liveFixtures?: number;
-        }>;
-        return Response.json({ ok: true, count: data.length, tournaments: data });
+        return Response.json({ ok: false, error: "Não foi possível consultar a OddsPapi." }, { status: 502 });
       },
     },
   },
