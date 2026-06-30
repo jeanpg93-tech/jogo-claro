@@ -38,21 +38,14 @@ export const ODDSPAPI_TOURNAMENTS: OddsPapiTournament[] = [
 ];
 
 export const ODDSPAPI_BOOKMAKERS: OddsPapiBookmaker[] = [
-  // Brasil (foco principal)
+  // Brasil / casas conhecidas no Brasil testadas com a chave atual.
+  // Evitamos duplicatas *.bet.br que retornaram RESTRICTED_ACCESS no plano atual.
   { slug: "betano", label: "Betano", isBR: true },
-  { slug: "betano.bet.br", label: "Betano BR", isBR: true },
   { slug: "bet365", label: "bet365", isBR: true },
   { slug: "kto", label: "KTO", isBR: true },
-  { slug: "kto.bet.br", label: "KTO BR", isBR: true },
   { slug: "estrelabet", label: "Estrela Bet", isBR: true },
-  { slug: "estrelabet.bet.br", label: "EstrelaBet BR", isBR: true },
   { slug: "stake.bet.br", label: "Stake BR", isBR: true },
-  { slug: "superbet.bet.br", label: "Superbet BR", isBR: true },
-  { slug: "betnacional", label: "Betnacional", isBR: true },
   { slug: "sportingbet.bet.br", label: "Sportingbet BR", isBR: true },
-  { slug: "betboo.bet.br", label: "betboo BR", isBR: true },
-  { slug: "brazino777.bet.br", label: "Brazino777 BR", isBR: true },
-  { slug: "playpix", label: "PlayPix", isBR: true },
   // Sharps / referência
   { slug: "pinnacle", label: "Pinnacle Sports", isBR: false },
   { slug: "betfair-exchange", label: "Betfair Exchange", isBR: false },

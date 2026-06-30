@@ -575,6 +575,7 @@ interface LiveTournament {
 function LiveTournamentsList() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LiveTournament[] | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
   async function load() {
@@ -591,6 +592,7 @@ function LiveTournamentsList() {
         throw new Error(json.error ?? `Erro ${res.status}: ${JSON.stringify(json).slice(0, 200)}`);
       }
       setItems(json.tournaments as LiveTournament[]);
+      setWarning(typeof json.warning === "string" ? json.warning : null);
       toast.success(`${json.count} torneios carregados.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao listar.");
@@ -632,6 +634,11 @@ function LiveTournamentsList() {
       </div>
       {items && (
         <>
+          {warning && (
+            <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {warning}
+            </div>
+          )}
           <input
             type="text"
             value={filter}
