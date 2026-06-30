@@ -15,7 +15,10 @@ export interface OddsPapiBookmaker {
 
 export const ODDSPAPI_TOURNAMENTS: OddsPapiTournament[] = [
   // Seleções
-  { slug: "fifa-world-cup", label: "Copa do Mundo FIFA", group: "Seleções" },
+  { slug: "world-cup", label: "Copa do Mundo FIFA", group: "Seleções" },
+  { slug: "wc-qualification-uefa", label: "Eliminatórias Copa do Mundo — UEFA", group: "Seleções" },
+  { slug: "fifa-world-cup-qualification-caf", label: "Eliminatórias Copa do Mundo — CAF", group: "Seleções" },
+  { slug: "world-cup-qualification-concacaf", label: "Eliminatórias Copa do Mundo — CONCACAF", group: "Seleções" },
   // Brasil
   { slug: "brasileirao-serie-a", label: "Brasileirão Série A", group: "Brasil" },
   { slug: "brasileirao-serie-b", label: "Brasileirão Série B", group: "Brasil" },
