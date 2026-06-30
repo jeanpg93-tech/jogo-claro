@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
         };
         const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         let cursor = addDays(today, -1);
-        const until = addDays(today, 35);
+        const until = addDays(today, 24);
         while (cursor.getTime() < until.getTime()) {
           const to = addDays(cursor, 5);
           const url = new URL("https://api.oddspapi.io/v4/fixtures");
