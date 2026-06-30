@@ -61,7 +61,7 @@ export const ODDSPAPI_BOOKMAKERS: OddsPapiBookmaker[] = [
   { slug: "1xbet", label: "1xBet", isBR: false },
 ];
 
-export const DEFAULT_ODDSPAPI_TOURNAMENTS: string[] = ["fifa-world-cup"];
+export const DEFAULT_ODDSPAPI_TOURNAMENTS: string[] = ["world-cup"];
 export const DEFAULT_ODDSPAPI_BOOKMAKERS: string[] = [
   "betano",
   "bet365",
