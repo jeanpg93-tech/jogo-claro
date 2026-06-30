@@ -24,6 +24,9 @@ const FILTERS: { value: "todos" | GameStatus; label: string }[] = [
   { value: "sem_cobertura", label: "Sem cobertura" },
 ];
 
+const ALL_COMPETITIONS = "__all__";
+
+
 function DashboardPage() {
   const { effectiveIsAdmin, isAdmin, viewMode } = useRole();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("todos");
