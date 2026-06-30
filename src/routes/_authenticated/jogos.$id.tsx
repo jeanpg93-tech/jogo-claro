@@ -1,48 +1,54 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowLeft, CalendarClock, Info } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft, CalendarClock, Info, Loader2 } from "lucide-react";
 import {
   STATUS_META,
   classifyGame,
-  getDemoGame,
   impliedProb,
   RULES,
-  type DemoGame,
+  type Game,
 } from "@/lib/demo-games";
+import { useGame } from "@/lib/games-data";
 
 export const Route = createFileRoute("/_authenticated/jogos/$id")({
   head: ({ params }) => ({
     meta: [{ title: `Jogo ${params.id} — Visão de Jogo` }],
   }),
-  loader: ({ params }) => {
-    const game = getDemoGame(params.id);
-    if (!game) throw notFound();
-    return { game };
-  },
   component: JogoDetailPage,
-  notFoundComponent: () => (
-    <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-      <h1 className="text-2xl font-semibold">Jogo não encontrado</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        O jogo demonstrativo solicitado não existe.
-      </p>
-      <Link
-        to="/dashboard"
-        className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-      >
-        Voltar ao painel
-      </Link>
-    </div>
-  ),
-  errorComponent: ({ error }) => (
-    <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-      <h1 className="text-2xl font-semibold">Erro ao carregar o jogo</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
-    </div>
-  ),
 });
 
 function JogoDetailPage() {
-  const { game } = Route.useLoaderData() as { game: DemoGame };
+  const { id } = Route.useParams();
+  const { data: game, isLoading } = useGame(id);
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto flex max-w-2xl items-center justify-center px-4 py-16 text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando jogo...
+      </div>
+    );
+  }
+
+  if (!game) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+        <h1 className="text-2xl font-semibold">Jogo não encontrado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          O jogo solicitado não existe ou já saiu da janela de cobertura.
+        </p>
+        <Link
+          to="/dashboard"
+          className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Voltar ao painel
+        </Link>
+      </div>
+    );
+  }
+
+  return <GameDetail game={game} />;
+}
+
+function GameDetail({ game }: { game: Game }) {
   const c = classifyGame(game);
   const meta = STATUS_META[c.status];
 
@@ -65,15 +71,22 @@ function JogoDetailPage() {
               {game.home} <span className="text-muted-foreground">vs</span>{" "}
               {game.away}
             </h1>
-            <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <CalendarClock className="h-4 w-4" />
               {new Date(game.kickoff).toLocaleString("pt-BR", {
                 dateStyle: "full",
                 timeStyle: "short",
               })}
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
-                Dados demonstrativos
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${game.demo ? "bg-muted" : "bg-emerald-500/15 text-emerald-300"}`}
+              >
+                {game.demo ? "Dados demonstrativos" : "Dados reais"}
               </span>
+              {game.updatedAt && (
+                <span className="text-xs">
+                  · atualizado em {new Date(game.updatedAt).toLocaleString("pt-BR")}
+                </span>
+              )}
             </div>
           </div>
           <span
@@ -105,11 +118,11 @@ function JogoDetailPage() {
 
           <section className="rounded-xl border border-border/60 bg-background/30 p-4">
             <h2 className="text-sm font-semibold tracking-tight">
-              Odds disponíveis (demo)
+              Odds disponíveis
             </h2>
             {game.books.length === 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">
-                Sem fontes demonstrativas para este jogo.
+                Sem fontes disponíveis para este jogo.
               </p>
             ) : (
               <div className="mt-3 overflow-x-auto">

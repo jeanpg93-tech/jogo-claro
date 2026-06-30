@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { CalendarClock, Filter, Search } from "lucide-react";
+import { CalendarClock, Filter, Loader2, Search } from "lucide-react";
 import {
-  DEMO_GAMES,
   STATUS_META,
   classifyGame,
   type GameStatus,
 } from "@/lib/demo-games";
+import { useGames } from "@/lib/games-data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/use-role";
@@ -29,20 +29,23 @@ function DashboardPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("todos");
   const [query, setQuery] = useState("");
 
+  const { data, isLoading } = useGames();
+  const games = data?.games ?? [];
+  const usingDemo = data?.usingDemo ?? true;
+  const lastSync = data?.lastSync ?? null;
+
   const items = useMemo(() => {
-    return DEMO_GAMES.map((g) => ({ g, c: classifyGame(g) })).filter(
-      ({ g, c }) => {
-        if (filter !== "todos" && c.status !== filter) return false;
-        if (!query) return true;
-        const q = query.toLowerCase();
-        return (
-          g.home.toLowerCase().includes(q) ||
-          g.away.toLowerCase().includes(q) ||
-          g.competition.toLowerCase().includes(q)
-        );
-      },
-    );
-  }, [filter, query]);
+    return games.map((g) => ({ g, c: classifyGame(g) })).filter(({ g, c }) => {
+      if (filter !== "todos" && c.status !== filter) return false;
+      if (!query) return true;
+      const q = query.toLowerCase();
+      return (
+        g.home.toLowerCase().includes(q) ||
+        g.away.toLowerCase().includes(q) ||
+        g.competition.toLowerCase().includes(q)
+      );
+    });
+  }, [filter, query, games]);
 
   const counts = useMemo(() => {
     const acc: Record<GameStatus, number> = {
@@ -51,9 +54,9 @@ function DashboardPage() {
       sem_oportunidade: 0,
       oportunidade_analitica: 0,
     };
-    for (const g of DEMO_GAMES) acc[classifyGame(g).status]++;
+    for (const g of games) acc[classifyGame(g).status]++;
     return acc;
-  }, []);
+  }, [games]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -61,17 +64,35 @@ function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Painel de jogos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Análise pré-jogo demonstrativa. Os dados desta tela são fictícios e servem
-            apenas para validar a metodologia.
+            {usingDemo ? (
+              <>
+                Exibindo dados <strong className="text-foreground">demonstrativos</strong>. Após a
+                primeira sincronização, os jogos reais aparecerão aqui.
+              </>
+            ) : (
+              <>
+                Dados reais. Última sincronização:{" "}
+                <strong className="text-foreground">
+                  {lastSync ? new Date(lastSync).toLocaleString("pt-BR") : "—"}
+                </strong>
+                .
+              </>
+            )}
           </p>
         </div>
         {isAdmin && (
-          <div className="rounded-md border border-border/60 bg-card px-3 py-2 text-xs text-muted-foreground">
-            Você está visualizando como{" "}
-            <strong className="text-foreground">
-              {viewMode === "admin" ? "Admin Master" : "Usuário comum"}
-            </strong>
-            .
+          <div className="flex items-center gap-2">
+            <div className="rounded-md border border-border/60 bg-card px-3 py-2 text-xs text-muted-foreground">
+              Visualizando como{" "}
+              <strong className="text-foreground">
+                {viewMode === "admin" ? "Admin Master" : "Usuário comum"}
+              </strong>
+            </div>
+            {effectiveIsAdmin && (
+              <Button asChild size="sm" variant="outline">
+                <Link to="/admin/sincronizacao">Sincronização</Link>
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -124,7 +145,12 @@ function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-3">
-        {items.length === 0 && (
+        {isLoading && (
+          <div className="flex items-center justify-center rounded-lg border border-border/60 bg-card p-6 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando jogos...
+          </div>
+        )}
+        {!isLoading && items.length === 0 && (
           <div className="rounded-lg border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
             Nenhum jogo corresponde ao filtro selecionado.
           </div>
@@ -151,8 +177,10 @@ function DashboardPage() {
                     dateStyle: "short",
                     timeStyle: "short",
                   })}
-                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
-                    Demo
+                  <span
+                    className={`ml-2 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${g.demo ? "bg-muted" : "bg-emerald-500/15 text-emerald-300"}`}
+                  >
+                    {g.demo ? "Demo" : "Real"}
                   </span>
                 </div>
               </div>
@@ -173,7 +201,7 @@ function DashboardPage() {
             {effectiveIsAdmin && (
               <div className="mt-3 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
                 <strong className="text-foreground">Visão Admin:</strong> {g.books.length}{" "}
-                fonte(s) demo, atualizado{" "}
+                fonte(s), atualizado{" "}
                 {g.updatedAt
                   ? new Date(g.updatedAt).toLocaleString("pt-BR")
                   : "—"}

@@ -25,8 +25,11 @@ export interface DemoGame {
   reference: { home: number; draw: number; away: number } | null; // referência de mercado
   books: BookOdds[];
   notes?: string;
-  demo: true;
+  demo: boolean; // true quando vem do dataset de demonstração
 }
+
+// Alias semântico: o painel passa a aceitar jogos reais com o mesmo shape.
+export type Game = DemoGame;
 
 // Helpers de regras objetivas (transparentes)
 export const RULES = {
