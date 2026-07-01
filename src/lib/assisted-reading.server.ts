@@ -476,7 +476,7 @@ Use apenas os dados objetivos recebidos. Não invente estatísticas, histórico,
 Termos proibidos: aposte, aposte agora, não aposte, palpite, palpite certeiro, lucro, renda, garantido, certeza, infalível, robô vencedor, green certo.
 
 Responda somente JSON válido, sem markdown, com estes campos:
-{"status":"aguardar_dados","frase_chave":"até 12 palavras","resumo_direto":"até 22 palavras","resumo":"até 45 palavras","qualidade_dados":"até 30 palavras","leitura_odds":"até 35 palavras","comparacao_referencia":"até 35 palavras","riscos":["item curto 1","item curto 2"],"pontos_atencao":["item curto 1","item curto 2"],"perfis":{"conservador":"1 frase","equilibrado":"1 frase","agressivo":"1 frase","oportunista":"1 frase","iniciante":"1 frase"},"conclusao":"até 25 palavras","aguardar_dados_motivo":null}`;
+{"status":"aguardar_dados","frase_chave":"até 12 palavras","resumo_direto":"até 22 palavras","por_que_favorito":"2 frases curtas com base nos números","odd_referencia_justa":{"lado":null,"valor":null,"comentario":"referência analítica, não é sugestão de aposta"},"resumo":"até 45 palavras","qualidade_dados":"até 30 palavras","leitura_odds":"até 35 palavras","comparacao_referencia":"até 35 palavras","riscos":["item curto 1","item curto 2"],"pontos_atencao":["item curto 1","item curto 2"],"perfis":{"conservador":"1 frase","equilibrado":"1 frase","agressivo":"1 frase","oportunista":"1 frase","iniciante":"1 frase"},"conclusao":"até 25 palavras","aguardar_dados_motivo":null}`;
 
 function envMaxTokens(defaultValue: number): number {
   const n = Number(process.env.ASSISTED_AI_MAX_TOKENS ?? defaultValue);
