@@ -173,28 +173,59 @@ export function AssistedReadingSection({ game }: { game: Game }) {
 
   const canGenerate = dataOk && uiStatus !== "loading";
   const hasReading = Boolean(reading);
+  const [mode, setMode] = useState<"direta" | "detalhada">("direta");
 
   return (
     <section className="mt-6 rounded-2xl border border-border/60 bg-card p-5">
       <header className="flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            <Bot className="h-3.5 w-3.5" /> Análise assistida do jogo
+            <Bot className="h-3.5 w-3.5" /> Análise com IA
           </div>
           <h2 className="mt-1 text-lg font-semibold tracking-tight">
-            IA externa · análise base compartilhada por partida
+            Uma leitura por partida, compartilhada
           </h2>
         </div>
         <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-emerald-200">
-          Fase 6
+          Beta
         </span>
       </header>
 
       <p className="mt-2 text-sm text-muted-foreground">
-        Uma análise por jogo, gerada por IA externa e reutilizada para todos os
-        usuários. A leitura por perfil abaixo é apenas um recorte do texto — a
-        decisão final é sempre sua. Cache de 30 min por jogo.
+        Uma análise única por jogo, gerada por IA e reaproveitada para todos os
+        usuários. A leitura por perfil abaixo é apenas um recorte — a decisão
+        final é sempre sua. Atualizada a cada 30 minutos.
       </p>
+
+      {/* Modo Direta / Detalhada */}
+      {hasReading && (
+        <div className="mt-4 inline-flex rounded-lg border border-border/60 bg-background/40 p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setMode("direta")}
+            className={
+              "rounded-md px-3 py-1.5 font-medium transition " +
+              (mode === "direta"
+                ? "bg-emerald-500/20 text-emerald-100"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            Direta
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("detalhada")}
+            className={
+              "rounded-md px-3 py-1.5 font-medium transition " +
+              (mode === "detalhada"
+                ? "bg-emerald-500/20 text-emerald-100"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            Detalhada
+          </button>
+        </div>
+      )}
 
       {/* Ações */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -224,37 +255,55 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         )}
         {reading && (
           <span className="text-[11px] text-muted-foreground">
-            Atualizada há <b>{reading.ageMin} min</b> · provedor{" "}
-            <b>{reading.provider || providerName || "externo"}</b>
-            {reading.model ? ` · ${reading.model}` : ""}
+            Atualizada há <b>{reading.ageMin} min</b>
           </span>
         )}
       </div>
 
+      {/* Skeleton de carregamento */}
+      {uiStatus === "loading" && <LoadingSkeleton />}
+
       {/* Estado inline / erros */}
-      {uiStatus !== "ready" && (
+      {uiStatus !== "ready" && uiStatus !== "loading" && (
         <InlineState status={uiStatus} message={providerMsg} dataOk={dataOk} />
       )}
 
-      {/* Leitura completa */}
-      {reading && (
-        <ReadingBody reading={reading} userPerfil={userPerfil} />
+      {/* Leitura */}
+      {reading && uiStatus !== "loading" && (
+        <ReadingBody reading={reading} userPerfil={userPerfil} mode={mode} />
       )}
 
       {!reading && uiStatus === "empty" && (
         <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-4 text-sm text-muted-foreground">
           Análise ainda não gerada para este jogo. Clique em <b>Gerar análise</b>{" "}
-          para produzir a leitura base compartilhada.
+          para produzir a leitura compartilhada.
         </div>
       )}
 
       <ul className="mt-4 grid gap-1 text-[11px] text-muted-foreground md:grid-cols-2">
-        <li>· A IA usada é externa e roda apenas server-side.</li>
-        <li>· Cache por jogo — todos os usuários leem a mesma análise base.</li>
-        <li>· Saída filtrada contra: aposte, palpite, lucro, garantido, etc.</li>
+        <li>· A análise roda apenas no servidor, com dados objetivos do jogo.</li>
+        <li>· Cache por partida — todos os usuários leem a mesma leitura base.</li>
+        <li>· Saída filtrada contra termos como "aposte", "palpite", "lucro".</li>
         <li>· A decisão final é sua. Jogo envolve risco.</li>
       </ul>
     </section>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="mt-5 space-y-3">
+      <div className="h-20 animate-pulse rounded-xl border border-border/60 bg-gradient-to-r from-background/30 via-muted/20 to-background/30" />
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="h-24 animate-pulse rounded-xl border border-border/60 bg-muted/10" style={{ animationDelay: "80ms" }} />
+        <div className="h-24 animate-pulse rounded-xl border border-border/60 bg-muted/10" style={{ animationDelay: "160ms" }} />
+        <div className="h-24 animate-pulse rounded-xl border border-border/60 bg-muted/10" style={{ animationDelay: "240ms" }} />
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-300" />
+        Lendo os dados do jogo e montando a análise…
+      </div>
+    </div>
   );
 }
 
