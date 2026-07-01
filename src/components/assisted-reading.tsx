@@ -61,6 +61,7 @@ interface ApiResponse {
   provider?: string;
   message?: string;
   health?: HealthInfo;
+  stale?: boolean;
 }
 
 const STATUS_LABEL: Record<AssistedStatus, { label: string; tone: string; icon: typeof Bot }> = {
