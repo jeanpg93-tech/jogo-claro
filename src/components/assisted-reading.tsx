@@ -83,10 +83,10 @@ const STATUS_LABEL: Record<AssistedStatus, { label: string; tone: string; icon: 
 };
 
 export function AssistedReadingSection({ game }: { game: Game }) {
-  const input = buildAssistedReadingInput(game);
   const analysis = analyzeGame(game);
   const dataOk = analysis.coverage.hasReference && analysis.coverage.totalBooks >= 2;
   const { profile } = useAnalyticalProfile();
+  const { effectiveIsAdmin } = useRole();
 
   const userPerfil = useMemo<PerfilKey>(() => {
     if (profile.experience_level === "iniciante") return "iniciante";
@@ -101,8 +101,9 @@ export function AssistedReadingSection({ game }: { game: Game }) {
     dataOk ? "empty" : "insufficient_data",
   );
   const [providerMsg, setProviderMsg] = useState<string | null>(null);
-  const [providerName, setProviderName] = useState<string>("");
+  const [, setProviderName] = useState<string>("");
   const [health, setHealth] = useState<HealthInfo | null>(null);
+  const [isStale, setIsStale] = useState(false);
 
   // Carrega leitura já salva no banco (uma por jogo, compartilhada).
   useEffect(() => {
