@@ -98,8 +98,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Visão de Jogo é uma plataforma web de análise esportiva pré-jogo para futebol." },
       { property: "og:description", content: "Visão de Jogo é uma plataforma web de análise esportiva pré-jogo para futebol." },
       { name: "twitter:description", content: "Visão de Jogo é uma plataforma web de análise esportiva pré-jogo para futebol." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/d6b65cd5-f8f7-4480-9ff2-183a9b6de0ef" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/d6b65cd5-f8f7-4480-9ff2-183a9b6de0ef" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/c0c0150c-6144-4126-8b42-437b95100258" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/c0c0150c-6144-4126-8b42-437b95100258" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
