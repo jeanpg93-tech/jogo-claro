@@ -508,48 +508,25 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
     throw e;
   }
   const systemPrompt = await getActiveSystemPrompt();
-  if (st.provider === "external") {
-    const externalOpts = {
-      url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
-      headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
-      model: st.model!,
-      input,
-      systemPrompt,
-      // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
-      requestJson: false,
-    };
-    try {
-      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(2000) });
-    } catch (err) {
-      if (!isRetryableProviderError(err)) throw err;
-      console.warn(
-        "[assisted-reading] provider retrying compact mode:",
-        err instanceof Error ? err.message.slice(0, 180) : "unknown",
-      );
-      return callOpenAICompatible({ ...externalOpts, maxTokens: 1200, compact: true });
-    }
+  const externalOpts = {
+    url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
+    headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
+    model: st.model!,
+    input,
+    systemPrompt,
+    // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
+    requestJson: false,
+  };
+  try {
+    return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(2000) });
+  } catch (err) {
+    if (!isRetryableProviderError(err)) throw err;
+    console.warn(
+      "[assisted-reading] provider retrying compact mode:",
+      err instanceof Error ? err.message.slice(0, 180) : "unknown",
+    );
+    return callOpenAICompatible({ ...externalOpts, maxTokens: 1200, compact: true });
   }
-  if (st.provider === "lovable")
-    return callOpenAICompatible({
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      headers: { "Lovable-API-Key": process.env.LOVABLE_API_KEY! },
-      model: st.model!,
-      input,
-      systemPrompt,
-      requestJson: true,
-      maxTokens: envMaxTokens(2200),
-    });
-  if (st.provider === "openai")
-    return callOpenAICompatible({
-      url: "https://api.openai.com/v1/chat/completions",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY!}` },
-      model: st.model!,
-      input,
-      systemPrompt,
-      requestJson: true,
-      maxTokens: envMaxTokens(2200),
-    });
-  return callAnthropic({ model: st.model!, input, systemPrompt });
 }
 
 async function callOpenAICompatible(opts: {
