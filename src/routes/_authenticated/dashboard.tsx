@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/hooks/use-role";
+import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
+import { profileLens } from "@/lib/profile-lens";
+import { RISK_OPTIONS } from "@/lib/analytical-profile";
 import { GameRow } from "@/components/game-row";
+
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -43,9 +47,13 @@ function DashboardPage() {
   const [competition, setCompetition] = useState<string>(ALL_COMPETITIONS);
 
   const { data, isLoading } = useGames();
+  const { profile } = useAnalyticalProfile();
   const games = data?.games ?? [];
   const usingDemo = data?.usingDemo ?? true;
   const lastSync = data?.lastSync ?? null;
+  const riskLabel =
+    RISK_OPTIONS.find((r) => r.value === profile.risk_profile)?.label ?? null;
+
 
   const competitions = useMemo(() => {
     const set = new Set<string>();
