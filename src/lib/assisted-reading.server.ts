@@ -368,6 +368,27 @@ async function getActiveSystemPrompt(): Promise<string> {
   return SYSTEM_PROMPT;
 }
 
+export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT;
+
+// ----- Prompt e chamada ao provedor -----
+  try {
+    const admin = getAdmin();
+    const { data } = await admin
+      .from("ai_prompts")
+      .select("content")
+      .eq("name", "system_main")
+      .eq("active", true)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const txt = (data?.content ?? "").trim();
+    if (txt.length > 40) return txt;
+  } catch {
+    // fallback silencioso para prompt hardcoded
+  }
+  return SYSTEM_PROMPT;
+}
+
 export async function verifyAdminFromToken(token: string): Promise<boolean> {
   const admin = getAdmin();
   const { data: userRes, error: uerr } = await admin.auth.getUser(token);
