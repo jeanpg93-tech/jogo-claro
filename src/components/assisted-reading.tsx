@@ -212,6 +212,20 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         final é sempre sua. Atualizada a cada 30 minutos.
       </p>
 
+      {health?.degraded && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+          <div>
+            <div className="font-semibold">Provedor de IA instável no momento</div>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-amber-100/90">
+              Detectamos falhas recentes na geração de novas análises. A análise
+              anterior deste jogo continua visível abaixo. O aviso some
+              automaticamente quando o serviço voltar ao normal.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Modo Direta / Detalhada */}
       {hasReading && (
         <div className="mt-4 inline-flex rounded-lg border border-border/60 bg-background/40 p-0.5 text-xs">
