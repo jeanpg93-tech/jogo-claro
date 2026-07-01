@@ -98,6 +98,56 @@ export function getProviderStatus(): ProviderStatus {
   };
 }
 
+// ----- Saúde do provedor (auto banner de manutenção) -----
+// Guardado em memória do worker. Reinicia a cada deploy — suficiente para
+// ligar/desligar o aviso sem depender de flag manual.
+interface ProviderHealth {
+  degraded: boolean;
+  consecutiveFailures: number;
+  lastFailureAt: string | null;
+  lastFailureMsg: string | null;
+  lastSuccessAt: string | null;
+  cooldownUntil: string | null;
+}
+const HEALTH: ProviderHealth = {
+  degraded: false,
+  consecutiveFailures: 0,
+  lastFailureAt: null,
+  lastFailureMsg: null,
+  lastSuccessAt: null,
+  cooldownUntil: null,
+};
+const DEGRADE_AFTER = 2; // 2 falhas seguidas já liga o banner
+const COOLDOWN_MIN = 10; // sinaliza degradado por 10 min após última falha
+
+export function recordProviderSuccess() {
+  HEALTH.consecutiveFailures = 0;
+  HEALTH.degraded = false;
+  HEALTH.cooldownUntil = null;
+  HEALTH.lastSuccessAt = new Date().toISOString();
+}
+
+export function recordProviderFailure(msg: string) {
+  HEALTH.consecutiveFailures += 1;
+  HEALTH.lastFailureAt = new Date().toISOString();
+  HEALTH.lastFailureMsg = msg.slice(0, 240);
+  if (HEALTH.consecutiveFailures >= DEGRADE_AFTER) {
+    HEALTH.degraded = true;
+    HEALTH.cooldownUntil = new Date(Date.now() + COOLDOWN_MIN * 60_000).toISOString();
+  }
+}
+
+export function getProviderHealth(): ProviderHealth {
+  // Se o cooldown venceu, considera saudável novamente até nova falha.
+  if (HEALTH.degraded && HEALTH.cooldownUntil) {
+    if (Date.now() > new Date(HEALTH.cooldownUntil).getTime()) {
+      HEALTH.degraded = false;
+      HEALTH.cooldownUntil = null;
+    }
+  }
+  return { ...HEALTH };
+}
+
 function getAdmin() {
   const url = process.env.EXT_SUPABASE_URL;
   const key = process.env.EXT_SUPABASE_SERVICE_ROLE_KEY;

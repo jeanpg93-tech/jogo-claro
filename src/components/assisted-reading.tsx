@@ -45,12 +45,22 @@ interface CachedReading {
   fresh: boolean;
 }
 
+interface HealthInfo {
+  degraded: boolean;
+  consecutiveFailures: number;
+  lastFailureAt: string | null;
+  lastFailureMsg: string | null;
+  lastSuccessAt: string | null;
+  cooldownUntil: string | null;
+}
+
 interface ApiResponse {
   status: AssistedReadingUiStatus | "ready" | "not_configured" | "blocked" | "error" | "quota_exceeded";
   reading?: CachedReading | null;
   fromCache?: boolean;
   provider?: string;
   message?: string;
+  health?: HealthInfo;
 }
 
 const STATUS_LABEL: Record<AssistedStatus, { label: string; tone: string; icon: typeof Bot }> = {
@@ -92,6 +102,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
   );
   const [providerMsg, setProviderMsg] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>("");
+  const [health, setHealth] = useState<HealthInfo | null>(null);
 
   // Carrega leitura já salva no banco (uma por jogo, compartilhada).
   useEffect(() => {
@@ -107,6 +118,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         const json = (await resp.json().catch(() => ({}))) as {
           provider?: { provider: string; configured: boolean; reason?: string };
           reading?: CachedReading | null;
+          health?: HealthInfo;
         };
         if (cancel) return;
         if (json.provider) {
@@ -115,6 +127,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
             setProviderMsg(json.provider.reason ?? "Provedor de IA não configurado.");
           }
         }
+        if (json.health) setHealth(json.health);
         if (json.reading) {
           setReading(json.reading);
           setUiStatus("ready");
@@ -145,6 +158,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
     },
     onMutate: () => setUiStatus("loading"),
     onSuccess: (json) => {
+      if (json.health) setHealth(json.health);
       if ((json.status === "ready") && json.reading) {
         setReading(json.reading);
         setUiStatus("ready");
@@ -197,6 +211,20 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         usuários. A leitura por perfil abaixo é apenas um recorte — a decisão
         final é sempre sua. Atualizada a cada 30 minutos.
       </p>
+
+      {health?.degraded && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+          <div>
+            <div className="font-semibold">Provedor de IA instável no momento</div>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-amber-100/90">
+              Detectamos falhas recentes na geração de novas análises. A análise
+              anterior deste jogo continua visível abaixo. O aviso some
+              automaticamente quando o serviço voltar ao normal.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Modo Direta / Detalhada */}
       {hasReading && (

@@ -17,6 +17,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const {
           verifyUserFromToken,
           getProviderStatus,
+          getProviderHealth,
           readLatestReading,
         } = await import("@/lib/assisted-reading.server");
         const userId = await verifyUserFromToken(token);
@@ -24,9 +25,10 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const url = new URL(request.url);
         const gameId = url.searchParams.get("gameId");
         const provider = getProviderStatus();
-        if (!gameId) return Response.json({ provider, reading: null });
+        const health = getProviderHealth();
+        if (!gameId) return Response.json({ provider, health, reading: null });
         const reading = await readLatestReading(gameId);
-        return Response.json({ provider, reading });
+        return Response.json({ provider, health, reading });
       },
       POST: async ({ request }) => {
         const auth = request.headers.get("authorization") ?? "";
@@ -36,6 +38,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const {
           verifyUserFromToken,
           getProviderStatus,
+          getProviderHealth,
           hashInput,
           readCachedReading,
           readLatestReading,
@@ -43,6 +46,8 @@ export const Route = createFileRoute("/api/assisted-reading")({
           saveReading,
           containsForbidden,
           checkAndIncrementQuota,
+          recordProviderSuccess,
+          recordProviderFailure,
         } = await import("@/lib/assisted-reading.server");
 
         const userId = await verifyUserFromToken(token);
@@ -100,8 +105,10 @@ export const Route = createFileRoute("/api/assisted-reading")({
         let out;
         try {
           out = await callProvider(input);
+          recordProviderSuccess();
         } catch (err) {
           const msg = err instanceof Error ? err.message : "falha no provedor";
+          recordProviderFailure(msg);
           console.error("[assisted-reading] provider failed:", msg);
           const last = await readLatestReading(gameId);
           const isRate = /429|rate.?limit|sobrecarreg|overload/i.test(msg);
@@ -111,15 +118,18 @@ export const Route = createFileRoute("/api/assisted-reading")({
               ? "O provedor de IA está sobrecarregado agora. Aguarde alguns minutos e tente de novo — a análise anterior continua disponível abaixo."
               : "A análise por IA ficou indisponível por alguns instantes. Tente novamente em breve.",
             detail: process.env.NODE_ENV === "development" ? msg : undefined,
+            health: getProviderHealth(),
             reading: last,
           });
         }
 
         if (!out.payload.resumo) {
+          recordProviderFailure("resposta incompleta do provedor");
           const last = await readLatestReading(gameId);
           return Response.json({
             status: "error",
             message: "A IA não retornou uma análise completa. Tente gerar novamente.",
+            health: getProviderHealth(),
             reading: last,
           });
         }
