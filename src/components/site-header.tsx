@@ -20,53 +20,49 @@ export function SiteHeader() {
   const close = () => setOpen(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:px-4">
-        <Link to="/" className="flex min-w-0 items-center gap-2">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+    <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0a0f0d]/85 backdrop-blur-md">
+      {/* Neon accent bar */}
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-[#22c55e]/60 to-transparent" />
+
+      <div className="mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 sm:px-4 md:h-20">
+        {/* Brand */}
+        <Link to="/" className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-[#22c55e]/30 bg-[#111a16] text-[#22c55e] md:h-10 md:w-10">
             <Eye className="h-5 w-5" />
           </span>
-          <div className="min-w-0 leading-tight">
-            <div className="truncate font-display text-base font-semibold tracking-tight sm:text-lg">
-              Visão de Jogo
+          <div className="min-w-0 leading-none">
+            <div className="truncate font-['Bebas_Neue'] text-2xl tracking-wide text-white md:text-3xl">
+              Visão de <span className="text-[#22c55e]">Jogo</span>
             </div>
-            <div className="hidden text-[10px] uppercase tracking-widest text-muted-foreground sm:block">
+            <div className="mt-1 hidden text-[9px] font-bold uppercase tracking-[0.22em] text-[#a3e635]/80 sm:block">
               Análise pré-jogo
             </div>
           </div>
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+        <nav className="hidden items-center gap-1 text-[13px] font-bold uppercase tracking-widest md:flex">
           {user && (
             <>
-              <Link to="/dashboard" className="hover:text-foreground">
-                Painel
-              </Link>
-              <Link to="/diario" className="hover:text-foreground">
-                Diário
-              </Link>
+              <DesktopLink to="/dashboard">Painel</DesktopLink>
+              <DesktopLink to="/diario">Diário</DesktopLink>
             </>
           )}
-          <Link to="/metodologia" className="hover:text-foreground">
-            Metodologia
-          </Link>
-          <Link to="/jogo-responsavel" className="hover:text-foreground">
-            Jogo responsável
-          </Link>
+          <DesktopLink to="/metodologia">Metodologia</DesktopLink>
+          <DesktopLink to="/jogo-responsavel">Jogo responsável</DesktopLink>
         </nav>
 
         {/* Desktop actions */}
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="col-start-3 hidden items-center gap-2 md:flex">
           {isAdmin && (
-            <div className="flex items-center overflow-hidden rounded-md border border-border bg-card text-xs">
+            <div className="flex items-center overflow-hidden rounded-sm border border-white/10 bg-[#111a16] text-[10px] font-bold uppercase tracking-widest">
               <button
                 type="button"
                 onClick={() => setViewMode("admin")}
-                className={`flex items-center gap-1 px-2 py-1 transition-colors ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${
                   viewMode === "admin"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[#22c55e] text-[#0a0f0d]"
+                    : "text-slate-400 hover:text-white"
                 }`}
                 title="Visualizar como Admin Master"
               >
@@ -75,10 +71,10 @@ export function SiteHeader() {
               <button
                 type="button"
                 onClick={() => setViewMode("user")}
-                className={`flex items-center gap-1 px-2 py-1 transition-colors ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${
                   viewMode === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[#22c55e] text-[#0a0f0d]"
+                    : "text-slate-400 hover:text-white"
                 }`}
                 title="Visualizar como Usuário comum"
               >
@@ -86,33 +82,46 @@ export function SiteHeader() {
               </button>
             </div>
           )}
-          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          <span className="rounded-sm border border-[#22c55e]/40 bg-[#111a16] px-2 py-1 text-[10px] font-bold tracking-widest text-[#a3e635]">
             18+
           </span>
           {user ? (
             <>
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/perfil">Perfil</Link>
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => signOut()}>
+              <Link
+                to="/perfil"
+                className="inline-flex min-h-9 items-center rounded-sm px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-slate-300 transition-colors hover:text-white"
+              >
+                Perfil
+              </Link>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="inline-flex min-h-9 items-center rounded-sm border border-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-white/5"
+              >
                 Sair
-              </Button>
+              </button>
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/auth/entrar">Entrar</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link to="/auth/cadastro">Criar conta</Link>
-              </Button>
+              <Link
+                to="/auth/entrar"
+                className="inline-flex min-h-9 items-center rounded-sm px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-slate-300 transition-colors hover:text-white"
+              >
+                Entrar
+              </Link>
+              <Link
+                to="/auth/cadastro"
+                className="inline-flex min-h-9 items-center rounded-sm bg-[#22c55e] px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-[#0a0f0d] transition-colors hover:bg-[#a3e635]"
+              >
+                Criar conta
+              </Link>
             </>
           )}
         </div>
 
         {/* Mobile: 18+ + hamburger */}
-        <div className="flex items-center gap-2 md:hidden">
-          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+        <div className="col-start-2 flex items-center gap-2 md:hidden">
+          <span className="rounded-sm border border-[#22c55e]/40 bg-[#111a16] px-2 py-1 text-[10px] font-bold tracking-widest text-[#a3e635]">
             18+
           </span>
           <Sheet open={open} onOpenChange={setOpen}>
@@ -121,17 +130,22 @@ export function SiteHeader() {
                 variant="outline"
                 size="icon"
                 aria-label="Abrir menu"
-                className="h-11 w-11"
+                className="h-11 w-11 rounded-sm border-white/10 bg-[#111a16] text-white hover:bg-white/5 hover:text-white"
               >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto">
+            <SheetContent
+              side="right"
+              className="w-[85vw] max-w-sm overflow-y-auto border-l border-white/5 bg-[#0a0f0d] text-slate-200"
+            >
               <SheetHeader>
-                <SheetTitle className="text-left">Menu</SheetTitle>
+                <SheetTitle className="text-left font-['Bebas_Neue'] text-3xl tracking-wide text-white">
+                  Visão de <span className="text-[#22c55e]">Jogo</span>
+                </SheetTitle>
               </SheetHeader>
 
-              <nav className="mt-6 flex flex-col gap-1 text-base">
+              <nav className="mt-6 flex flex-col gap-1">
                 {user && (
                   <>
                     <MobileLink to="/dashboard" onClick={close}>
@@ -155,17 +169,17 @@ export function SiteHeader() {
 
               {isAdmin && (
                 <div className="mt-6">
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[#a3e635]/80">
                     Visualizar como
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setViewMode("admin")}
-                      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
+                      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
                         viewMode === "admin"
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border text-muted-foreground"
+                          ? "border-[#22c55e] bg-[#22c55e] text-[#0a0f0d]"
+                          : "border-white/10 bg-[#111a16] text-slate-400"
                       }`}
                     >
                       <ShieldCheck className="h-4 w-4" /> Admin
@@ -173,10 +187,10 @@ export function SiteHeader() {
                     <button
                       type="button"
                       onClick={() => setViewMode("user")}
-                      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
+                      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
                         viewMode === "user"
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border text-muted-foreground"
+                          ? "border-[#22c55e] bg-[#22c55e] text-[#0a0f0d]"
+                          : "border-white/10 bg-[#111a16] text-slate-400"
                       }`}
                     >
                       <UserIcon className="h-4 w-4" /> Usuário
@@ -187,29 +201,32 @@ export function SiteHeader() {
 
               <div className="mt-8 flex flex-col gap-2">
                 {user ? (
-                  <Button
-                    variant="outline"
-                    className="min-h-11 w-full"
+                  <button
+                    type="button"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-sm border border-white/10 bg-[#111a16] px-4 py-2 text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-white/5"
                     onClick={() => {
                       close();
                       signOut();
                     }}
                   >
                     Sair
-                  </Button>
+                  </button>
                 ) : (
                   <>
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="min-h-11 w-full"
+                    <Link
+                      to="/auth/entrar"
                       onClick={close}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-sm border border-white/10 bg-[#111a16] px-4 py-2 text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-white/5"
                     >
-                      <Link to="/auth/entrar">Entrar</Link>
-                    </Button>
-                    <Button asChild className="min-h-11 w-full" onClick={close}>
-                      <Link to="/auth/cadastro">Criar conta</Link>
-                    </Button>
+                      Entrar
+                    </Link>
+                    <Link
+                      to="/auth/cadastro"
+                      onClick={close}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-[#22c55e] px-4 py-2 text-sm font-bold uppercase tracking-widest text-[#0a0f0d] transition-colors hover:bg-[#a3e635]"
+                    >
+                      Criar conta
+                    </Link>
                   </>
                 )}
               </div>
@@ -218,6 +235,18 @@ export function SiteHeader() {
         </div>
       </div>
     </header>
+  );
+}
+
+function DesktopLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="relative inline-flex min-h-9 items-center rounded-sm px-3 py-1.5 text-slate-400 transition-colors hover:text-white"
+      activeProps={{ className: "text-white" }}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -234,7 +263,7 @@ function MobileLink({
     <Link
       to={to}
       onClick={onClick}
-      className="flex min-h-11 items-center rounded-md px-3 py-2 text-foreground hover:bg-accent"
+      className="flex min-h-11 items-center rounded-sm border border-transparent px-3 py-2 text-sm font-bold uppercase tracking-widest text-slate-300 transition-colors hover:border-[#22c55e]/30 hover:bg-[#111a16] hover:text-white"
     >
       {children}
     </Link>
