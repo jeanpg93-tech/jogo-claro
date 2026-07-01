@@ -120,18 +120,21 @@ export function AssistedReadingSection({ game }: { game: Game }) {
           provider?: { provider: string; configured: boolean; reason?: string };
           reading?: CachedReading | null;
           health?: HealthInfo;
+          stale?: boolean;
         };
         if (cancel) return;
         if (json.provider) {
           setProviderName(json.provider.provider || "");
           if (!json.provider.configured) {
             setProviderMsg(json.provider.reason ?? "Provedor de IA não configurado.");
+            setUiStatus("not_configured");
           }
         }
         if (json.health) setHealth(json.health);
+        setIsStale(Boolean(json.stale));
         if (json.reading) {
           setReading(json.reading);
-          setUiStatus("ready");
+          if (uiStatus !== "not_configured") setUiStatus(json.stale ? "stale" : "ready");
         }
       } catch {
         /* silencioso: shell continua acessível */
