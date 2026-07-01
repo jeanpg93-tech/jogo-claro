@@ -530,11 +530,17 @@ async function callOpenAICompatible(opts: {
   requestJson: boolean;
   maxTokens: number;
   compact?: boolean;
+  systemPrompt?: string;
 }): Promise<ProviderCall> {
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
-      { role: "system", content: opts.compact ? COMPACT_SYSTEM_PROMPT : SYSTEM_PROMPT },
+      {
+        role: "system",
+        content: opts.compact
+          ? COMPACT_SYSTEM_PROMPT
+          : (opts.systemPrompt ?? SYSTEM_PROMPT),
+      },
       { role: "user", content: userPrompt(opts.input) },
     ],
     temperature: 0.3,
