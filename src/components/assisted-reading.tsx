@@ -156,13 +156,15 @@ export function AssistedReadingSection({ game }: { game: Game }) {
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ gameId: game.id, input }),
+        body: JSON.stringify({ gameId: game.id }),
       });
       return (await resp.json().catch(() => ({}))) as ApiResponse;
     },
     onMutate: () => setUiStatus("loading"),
     onSuccess: (json) => {
       if (json.health) setHealth(json.health);
+      const staleFlag = Boolean((json as ApiResponse & { stale?: boolean }).stale);
+      setIsStale(staleFlag);
       if ((json.status === "ready") && json.reading) {
         setReading(json.reading);
         setUiStatus("ready");
