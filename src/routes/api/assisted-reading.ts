@@ -38,6 +38,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const {
           verifyUserFromToken,
           getProviderStatus,
+          getProviderHealth,
           hashInput,
           readCachedReading,
           readLatestReading,
@@ -45,6 +46,8 @@ export const Route = createFileRoute("/api/assisted-reading")({
           saveReading,
           containsForbidden,
           checkAndIncrementQuota,
+          recordProviderSuccess,
+          recordProviderFailure,
         } = await import("@/lib/assisted-reading.server");
 
         const userId = await verifyUserFromToken(token);
