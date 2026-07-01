@@ -45,12 +45,22 @@ interface CachedReading {
   fresh: boolean;
 }
 
+interface HealthInfo {
+  degraded: boolean;
+  consecutiveFailures: number;
+  lastFailureAt: string | null;
+  lastFailureMsg: string | null;
+  lastSuccessAt: string | null;
+  cooldownUntil: string | null;
+}
+
 interface ApiResponse {
   status: AssistedReadingUiStatus | "ready" | "not_configured" | "blocked" | "error" | "quota_exceeded";
   reading?: CachedReading | null;
   fromCache?: boolean;
   provider?: string;
   message?: string;
+  health?: HealthInfo;
 }
 
 const STATUS_LABEL: Record<AssistedStatus, { label: string; tone: string; icon: typeof Bot }> = {
