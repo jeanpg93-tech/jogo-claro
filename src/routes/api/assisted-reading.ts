@@ -104,9 +104,6 @@ export const Route = createFileRoute("/api/assisted-reading")({
         // 4) Chama provedor externo
         let out;
         try {
-        // 4) Chama provedor externo
-        let out;
-        try {
           out = await callProvider(input);
           recordProviderSuccess();
         } catch (err) {
@@ -135,7 +132,6 @@ export const Route = createFileRoute("/api/assisted-reading")({
             health: getProviderHealth(),
             reading: last,
           });
-        }
         }
         const forbidden = containsForbidden(out.payload);
         if (forbidden) {
