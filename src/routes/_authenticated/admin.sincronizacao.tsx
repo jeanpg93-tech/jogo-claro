@@ -116,6 +116,18 @@ function AdminSyncPage() {
   const [showAllRuns, setShowAllRuns] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [cadence, setCadence] = useState<{
+    decision: {
+      skip: boolean;
+      intervalMin: number;
+      reason: string;
+      nextKickoffIso: string | null;
+      minutesUntilKickoff: number | null;
+    };
+    lastSyncAt: string | null;
+    nextEligibleAt: string | null;
+    now: string;
+  } | null>(null);
 
   async function load() {
     setRefreshing(true);
@@ -127,11 +139,26 @@ function AdminSyncPage() {
     setRefreshing(false);
     if (error) toast.error(error.message);
     else setRuns((data ?? []) as SyncRun[]);
+
+    // Cadência adaptativa
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (token) {
+        const res = await fetch("/api/admin/cadence", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) setCadence(await res.json());
+      }
+    } catch {
+      // silencioso — a UI mostra "—" quando cadence for null
+    }
   }
 
   useEffect(() => {
     if (effectiveIsAdmin) load();
   }, [effectiveIsAdmin]);
+
 
   async function triggerSync() {
     setSyncing(true);
