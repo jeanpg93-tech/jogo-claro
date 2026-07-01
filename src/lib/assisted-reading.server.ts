@@ -2,11 +2,13 @@
 // Executa apenas no servidor. Nunca importe este arquivo do cliente.
 //
 // Regras firmes:
-// - Não usa IA nativa do Lovable no produto final. O provedor é externo,
-//   configurado por ASSISTED_AI_PROVIDER=external + AI_GATEWAY_BASE_URL +
-//   AI_GATEWAY_MODEL + AI_GATEWAY_API_KEY (server-side).
+// - Provedor de IA TRAVADO no Gateway externo do Visão de Jogo.
+//   Configurado por AI_GATEWAY_BASE_URL + AI_GATEWAY_API_KEY + AI_GATEWAY_MODEL.
+//   NÃO usa Lovable AI, IA nativa do Lovable, OpenAI direto nem Anthropic direto.
+// - Frontend nunca envia o pacote de dados. O servidor lê games/odds/reference
+//   do Supabase e monta o input objetivo para a IA.
 // - Cache por jogo com TTL de 30 min. Se o input_hash mudar (odds mudaram)
-//   uma nova geração é permitida.
+//   a análise fica "desatualizada" e pode ser regerada.
 // - Cotas diárias por instalação (ASSISTED_AI_DAILY_LIMIT).
 // - Sanitiza a saída contra termos proibidos antes de persistir.
 import { createClient } from "@supabase/supabase-js";
@@ -36,7 +38,7 @@ const FORBIDDEN = [
   "green certo",
 ];
 
-export type ProviderId = "" | "external" | "lovable" | "openai" | "anthropic";
+export type ProviderId = "" | "external";
 
 export interface ProviderStatus {
   provider: ProviderId;
@@ -45,57 +47,15 @@ export interface ProviderStatus {
   reason?: string;
 }
 
+// Provedor TRAVADO no Gateway externo. Sem fallback para Lovable/OpenAI/Anthropic.
 export function getProviderStatus(): ProviderStatus {
-  const raw = (process.env.ASSISTED_AI_PROVIDER ?? "").trim().toLowerCase();
-  let provider = (["external", "lovable", "openai", "anthropic"].includes(raw)
-    ? raw
-    : "") as ProviderId;
-  // Auto-detect: se as envs do gateway externo estão presentes, assume "external".
-  if (!provider && process.env.AI_GATEWAY_BASE_URL && process.env.AI_GATEWAY_API_KEY) {
-    provider = "external";
-  }
-  if (!provider) {
-    return { provider: "", configured: false, model: null, reason: "ASSISTED_AI_PROVIDER não definido" };
-  }
-  if (provider === "external") {
-    const url = process.env.AI_GATEWAY_BASE_URL;
-    const key = process.env.AI_GATEWAY_API_KEY;
-    const model = process.env.AI_GATEWAY_MODEL ?? "claude-sonnet-4-6";
-    if (!url || !key) {
-      return {
-        provider,
-        configured: false,
-        model,
-        reason: !url ? "AI_GATEWAY_BASE_URL ausente" : "AI_GATEWAY_API_KEY ausente",
-      };
-    }
-    return { provider, configured: true, model };
-  }
-  if (provider === "lovable") {
-    const ok = Boolean(process.env.LOVABLE_API_KEY);
-    return {
-      provider,
-      configured: ok,
-      model: process.env.ASSISTED_AI_MODEL ?? "google/gemini-3-flash-preview",
-      reason: ok ? undefined : "LOVABLE_API_KEY ausente",
-    };
-  }
-  if (provider === "openai") {
-    const ok = Boolean(process.env.OPENAI_API_KEY);
-    return {
-      provider,
-      configured: ok,
-      model: process.env.ASSISTED_AI_MODEL ?? "gpt-4o-mini",
-      reason: ok ? undefined : "OPENAI_API_KEY ausente",
-    };
-  }
-  const ok = Boolean(process.env.ANTHROPIC_API_KEY);
-  return {
-    provider,
-    configured: ok,
-    model: process.env.ASSISTED_AI_MODEL ?? "claude-3-5-haiku-latest",
-    reason: ok ? undefined : "ANTHROPIC_API_KEY ausente",
-  };
+  const url = process.env.AI_GATEWAY_BASE_URL;
+  const key = process.env.AI_GATEWAY_API_KEY;
+  const model = process.env.AI_GATEWAY_MODEL;
+  if (!url) return { provider: "external", configured: false, model: null, reason: "AI_GATEWAY_BASE_URL ausente" };
+  if (!key) return { provider: "external", configured: false, model: null, reason: "AI_GATEWAY_API_KEY ausente" };
+  if (!model) return { provider: "external", configured: false, model: null, reason: "AI_GATEWAY_MODEL ausente" };
+  return { provider: "external", configured: true, model };
 }
 
 // ----- Saúde do provedor (auto banner de manutenção) -----
