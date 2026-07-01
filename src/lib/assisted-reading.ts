@@ -14,8 +14,11 @@
 import type { Game } from "@/lib/demo-games";
 import { analyzeGame } from "@/lib/game-analysis";
 
-// Feature flag: ligada apenas quando a Fase 5 estiver implantada.
-export const ASSISTED_READING_ENABLED = false;
+// Fase 5 — cliente sempre pode CHAMAR o endpoint; o backend decide se está
+// configurado (env `ASSISTED_AI_PROVIDER` + chave) e responde
+// `status: "not_configured"` quando não estiver. Enquanto isso o shell é
+// exibido normalmente. Nunca chamamos IA nativa do Lovable no produto.
+export const ASSISTED_READING_ENABLED = true;
 
 export type AssistedReadingStatus =
   | "disabled" // feature flag desligada
