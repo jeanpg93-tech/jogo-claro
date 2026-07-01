@@ -421,6 +421,10 @@ Responda ESTRITAMENTE em JSON válido:
   "aguardar_dados_motivo": string ou null (se status="aguardar_dados"/"sem_cobertura", diga o que falta em linguagem simples)
 }`;
 
+export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT;
+
+
+
 function userPrompt(input: AssistedReadingInput): string {
   return `Dados objetivos do jogo (mercado 1X2, apenas números):\n${JSON.stringify(
     { ...input, constraints: undefined },
