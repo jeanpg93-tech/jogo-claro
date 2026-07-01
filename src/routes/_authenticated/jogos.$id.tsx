@@ -14,6 +14,10 @@ import { KickoffCountdown } from "@/lib/kickoff-countdown";
 import { flagUrl } from "@/lib/team-flags";
 import { bookLogoUrl } from "@/lib/book-logos";
 import { ptTeam } from "@/lib/teams-pt";
+import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
+import { profileLens, lensTone } from "@/lib/profile-lens";
+import { RISK_OPTIONS } from "@/lib/analytical-profile";
+
 
 type Side = "home" | "draw" | "away";
 const SIDE_LABEL: Record<Side, string> = {
@@ -64,7 +68,14 @@ function JogoDetailPage() {
 function GameDetail({ game }: { game: Game }) {
   const c = classifyGame(game);
   const meta = STATUS_META[c.status];
+  const { profile } = useAnalyticalProfile();
+  const lens = profileLens(c.status, profile, {
+    edgePct: c.best?.edgePct ?? null,
+  });
+  const riskLabel =
+    RISK_OPTIONS.find((r) => r.value === profile.risk_profile)?.label ?? null;
   const defaultSide: Side = c.best?.side ?? "home";
+
   const [pickSide, setPickSide] = useState<Side>(defaultSide);
   const [pickBook, setPickBook] = useState<string | null>(
     game.books[0]?.book ?? null,
