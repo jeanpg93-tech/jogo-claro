@@ -102,6 +102,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
   );
   const [providerMsg, setProviderMsg] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>("");
+  const [health, setHealth] = useState<HealthInfo | null>(null);
 
   // Carrega leitura já salva no banco (uma por jogo, compartilhada).
   useEffect(() => {
