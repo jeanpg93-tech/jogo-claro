@@ -121,6 +121,8 @@ function DashboardPage() {
               <Button asChild size="sm" variant="outline">
                 <Link to="/admin/sincronizacao">Sincronização</Link>
               </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -136,8 +138,6 @@ function DashboardPage() {
         </div>
       )}
 
-        )}
-      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {(
