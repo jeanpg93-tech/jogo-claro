@@ -15,6 +15,8 @@ import { bookLogoUrl } from "@/lib/book-logos";
 import { isBookBR } from "@/lib/br-books";
 import { ptTeam } from "@/lib/teams-pt";
 import { KickoffCountdown } from "@/lib/kickoff-countdown";
+import { lensTone, type ProfileLens } from "@/lib/profile-lens";
+
 
 type Side = "home" | "draw" | "away";
 const SIDE_LABEL_SHORT: Record<Side, string> = {
@@ -98,10 +100,11 @@ function BestChip({
   );
 }
 
-export function GameRow({ game }: { game: Game }) {
+export function GameRow({ game, lens }: { game: Game; lens?: ProfileLens | null }) {
   const [open, setOpen] = useState(false);
   const c = classifyGame(game);
   const status = STATUS_META[c.status];
+
 
   // Melhor odd por lado + casa que oferece.
   const bests: Record<Side, { odd: number; book: string } | null> = {
@@ -191,6 +194,22 @@ export function GameRow({ game }: { game: Game }) {
           )}
         </div>
       </div>
+
+      {lens && (
+        <div className="border-t border-border/60 px-3 py-2">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${lensTone(lens.tone)}`}
+            title={lens.description}
+          >
+            <span className="text-[9px] uppercase tracking-wider opacity-70">
+              Seu perfil
+            </span>
+            {lens.label}
+          </span>
+        </div>
+      )}
+
+
 
       {/* Chips em telas pequenas (fora do open) */}
       <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 md:hidden">

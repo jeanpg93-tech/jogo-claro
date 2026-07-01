@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/hooks/use-role";
+import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
+import { profileLens } from "@/lib/profile-lens";
+import { RISK_OPTIONS } from "@/lib/analytical-profile";
 import { GameRow } from "@/components/game-row";
+
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -43,9 +47,13 @@ function DashboardPage() {
   const [competition, setCompetition] = useState<string>(ALL_COMPETITIONS);
 
   const { data, isLoading } = useGames();
+  const { profile } = useAnalyticalProfile();
   const games = data?.games ?? [];
   const usingDemo = data?.usingDemo ?? true;
   const lastSync = data?.lastSync ?? null;
+  const riskLabel =
+    RISK_OPTIONS.find((r) => r.value === profile.risk_profile)?.label ?? null;
+
 
   const competitions = useMemo(() => {
     const set = new Set<string>();
@@ -118,6 +126,19 @@ function DashboardPage() {
         )}
       </div>
 
+      {riskLabel && (
+        <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+          Destaques calibrados para o seu perfil:{" "}
+          <strong className="text-foreground">{riskLabel}</strong>. Você pode
+          ajustar em{" "}
+          <Link to="/perfil" className="text-primary hover:underline">
+            Perfil
+          </Link>
+          .
+        </div>
+      )}
+
+
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {(
           [
@@ -189,21 +210,27 @@ function DashboardPage() {
             Nenhum jogo corresponde ao filtro selecionado.
           </div>
         )}
-        {items.map(({ g }) => (
-          <div key={g.id}>
-            <GameRow game={g} />
-            {effectiveIsAdmin && (
-              <div className="mt-1 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
-                <strong className="text-foreground">Visão Admin:</strong> {g.books.length}{" "}
-                fonte(s), atualizado{" "}
-                {g.updatedAt
-                  ? new Date(g.updatedAt).toLocaleString("pt-BR")
-                  : "—"}
-                .
-              </div>
-            )}
-          </div>
-        ))}
+        {items.map(({ g, c }) => {
+          const lens = profileLens(c.status, profile, {
+            edgePct: c.best?.edgePct ?? null,
+          });
+          return (
+            <div key={g.id}>
+              <GameRow game={g} lens={lens} />
+              {effectiveIsAdmin && (
+                <div className="mt-1 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
+                  <strong className="text-foreground">Visão Admin:</strong>{" "}
+                  {g.books.length} fonte(s), atualizado{" "}
+                  {g.updatedAt
+                    ? new Date(g.updatedAt).toLocaleString("pt-BR")
+                    : "—"}
+                  .
+                </div>
+              )}
+            </div>
+          );
+        })}
+
       </div>
     </div>
   );
