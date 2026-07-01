@@ -95,9 +95,10 @@ function GameDetail({ game }: { game: Game }) {
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
               {game.competition} · {game.round}
             </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">
-              {game.home} <span className="text-muted-foreground">vs</span>{" "}
-              {game.away}
+            <h1 className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl font-bold tracking-tight md:text-3xl">
+              <TeamWithFlag name={game.home} />
+              <span className="text-muted-foreground">vs</span>
+              <TeamWithFlag name={game.away} />
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <CalendarClock className="h-4 w-4" />
