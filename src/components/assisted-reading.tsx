@@ -352,6 +352,43 @@ function ReadingBody({
         )}
       </div>
 
+      {/* Direta: por que é favorito + odd de referência */}
+      {isDireta && (p.por_que_favorito || p.odd_referencia_justa?.valor) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {p.por_que_favorito && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-200">
+                <Sparkles className="h-3.5 w-3.5" /> Por que é o favorito
+              </div>
+              <p className="mt-2 text-sm leading-relaxed">{p.por_que_favorito}</p>
+            </div>
+          )}
+          {p.odd_referencia_justa?.valor && p.odd_referencia_justa.lado && (
+            <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-sky-200">
+                <Scale className="h-3.5 w-3.5" /> Odd de referência analítica
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold tabular-nums text-sky-100">
+                  {p.odd_referencia_justa.valor.toFixed(2)}
+                </span>
+                <span className="text-xs uppercase tracking-wider text-sky-200/80">
+                  {p.odd_referencia_justa.lado}
+                </span>
+              </div>
+              {p.odd_referencia_justa.comentario && (
+                <p className="mt-2 text-[12px] leading-relaxed opacity-90">
+                  {p.odd_referencia_justa.comentario}
+                </p>
+              )}
+              <p className="mt-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+                Referência analítica — não é sugestão de aposta.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Blocos analíticos — só na Detalhada */}
       {!isDireta && (
         <div className="grid gap-3 md:grid-cols-3">
