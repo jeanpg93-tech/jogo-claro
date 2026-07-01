@@ -158,6 +158,8 @@ function GameDetail({ game }: { game: Game }) {
 
         <GameAnalysisSection game={game} />
 
+        <AssistedReadingSection game={game} />
+
         <div className="mt-6 grid gap-4 md:grid-cols-2">
 
           <section className="rounded-xl border border-border/60 bg-background/30 p-4">
