@@ -409,6 +409,34 @@ export async function verifyAdminFromToken(token: string): Promise<boolean> {
   return Boolean(roles?.some((r) => r.role === "admin"));
 }
 
+export interface CadenceStatus {
+  decision: CadenceDecision;
+  lastSyncAt: string | null;
+  nextEligibleAt: string | null;
+  now: string;
+}
+
+export async function getCadenceStatusAdmin(): Promise<CadenceStatus> {
+  const admin = getAdmin();
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const nextKickoffMs = await getNextKickoffMs(admin, nowIso);
+  const decision = computeCadence(nextKickoffMs, nowMs);
+  const lastRun = await getJsonSetting<{ at: string }>(admin, "last_sync_at");
+  const lastMs = lastRun?.at ? new Date(lastRun.at).getTime() : 0;
+  const nextEligibleMs = decision.skip
+    ? null
+    : lastMs > 0
+      ? lastMs + decision.intervalMin * 60000
+      : nowMs;
+  return {
+    decision,
+    lastSyncAt: lastRun?.at ?? null,
+    nextEligibleAt: nextEligibleMs ? new Date(nextEligibleMs).toISOString() : null,
+    now: nowIso,
+  };
+}
+
 // ---------- app_settings helpers ----------
 
 async function getJsonSetting<T>(admin: Admin, key: string): Promise<T | null> {
