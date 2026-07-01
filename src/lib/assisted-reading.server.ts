@@ -380,7 +380,7 @@ async function callOpenAICompatible(opts: {
       { role: "user", content: userPrompt(opts.input) },
     ],
     temperature: 0.3,
-    max_tokens: 1200,
+    max_tokens: 2200,
   };
   if (opts.requestJson) body.response_format = { type: "json_object" };
   const resp = await fetch(opts.url, {
@@ -418,7 +418,7 @@ async function callAnthropic(opts: {
     },
     body: JSON.stringify({
       model: opts.model,
-      max_tokens: 1200,
+      max_tokens: 2200,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt(opts.input) }],
     }),
