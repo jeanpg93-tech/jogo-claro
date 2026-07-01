@@ -418,6 +418,12 @@ Responda ESTRITAMENTE em JSON válido:
   "status": "sem_cobertura"|"aguardar_dados"|"sem_oportunidade"|"oportunidade_analitica",
   "frase_chave": string (1 frase de no máximo 14 palavras, o "título" da análise em linguagem de torcedor),
   "resumo_direto": string (1 frase de no máximo 25 palavras, versão bem simples para quem não quer ler muito),
+  "por_que_favorito": string (2 a 3 frases curtas explicando, com base APENAS nos números, por que o lado com menor odd é o favorito — cite consenso das casas, referência e dispersão em linguagem simples; se não houver favorito claro, diga isso),
+  "odd_referencia_justa": {
+    "lado": "mandante"|"empate"|"visitante"|null (lado que a análise considera com melhor relação risco x preço; null se não houver),
+    "valor": number|null (odd que a IA considera "justa" com base na referência de mercado — NUNCA apresente como sugestão de aposta, é apenas um número de referência analítico; null se não houver dados),
+    "comentario": string (1 frase curta explicando de onde vem essa referência e lembrando que NÃO é recomendação de aposta)
+  },
   "resumo": string (2 a 3 frases, versão completa e um pouco mais técnica, máx 60 palavras),
   "qualidade_dados": string (1 a 2 frases sobre cobertura, referência e frescor, em linguagem simples),
   "leitura_odds": string (1 a 2 frases sobre as odds e diferenças entre casas — sempre diga mandante/empate/visitante),
@@ -470,7 +476,7 @@ Use apenas os dados objetivos recebidos. Não invente estatísticas, histórico,
 Termos proibidos: aposte, aposte agora, não aposte, palpite, palpite certeiro, lucro, renda, garantido, certeza, infalível, robô vencedor, green certo.
 
 Responda somente JSON válido, sem markdown, com estes campos:
-{"status":"aguardar_dados","frase_chave":"até 12 palavras","resumo_direto":"até 22 palavras","resumo":"até 45 palavras","qualidade_dados":"até 30 palavras","leitura_odds":"até 35 palavras","comparacao_referencia":"até 35 palavras","riscos":["item curto 1","item curto 2"],"pontos_atencao":["item curto 1","item curto 2"],"perfis":{"conservador":"1 frase","equilibrado":"1 frase","agressivo":"1 frase","oportunista":"1 frase","iniciante":"1 frase"},"conclusao":"até 25 palavras","aguardar_dados_motivo":null}`;
+{"status":"aguardar_dados","frase_chave":"até 12 palavras","resumo_direto":"até 22 palavras","por_que_favorito":"2 frases curtas com base nos números","odd_referencia_justa":{"lado":null,"valor":null,"comentario":"referência analítica, não é sugestão de aposta"},"resumo":"até 45 palavras","qualidade_dados":"até 30 palavras","leitura_odds":"até 35 palavras","comparacao_referencia":"até 35 palavras","riscos":["item curto 1","item curto 2"],"pontos_atencao":["item curto 1","item curto 2"],"perfis":{"conservador":"1 frase","equilibrado":"1 frase","agressivo":"1 frase","oportunista":"1 frase","iniciante":"1 frase"},"conclusao":"até 25 palavras","aguardar_dados_motivo":null}`;
 
 function envMaxTokens(defaultValue: number): number {
   const n = Number(process.env.ASSISTED_AI_MAX_TOKENS ?? defaultValue);
@@ -503,7 +509,7 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       requestJson: false,
     };
     try {
-      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(1600) });
+      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(2000) });
     } catch (err) {
       if (!isRetryableProviderError(err)) throw err;
       console.warn(
@@ -649,11 +655,24 @@ function normalizePayload(raw: Record<string, unknown>): AssistedReadingPayload 
     "sem_oportunidade",
     "oportunidade_analitica",
   ];
+  const oddRef = (raw.odd_referencia_justa ?? {}) as Record<string, unknown>;
+  const ladoRaw = String(oddRef.lado ?? "").trim().toLowerCase();
+  const ladoValid: Array<"mandante" | "empate" | "visitante"> = ["mandante", "empate", "visitante"];
+  const ladoNorm = (ladoValid as string[]).includes(ladoRaw)
+    ? (ladoRaw as "mandante" | "empate" | "visitante")
+    : null;
+  const valorNum = Number(oddRef.valor);
   return {
     status: validStatus.includes(status) ? status : "aguardar_dados",
     resumo: String(raw.resumo ?? "").trim(),
     resumo_direto: String(raw.resumo_direto ?? raw.resumo ?? "").trim(),
     frase_chave: String(raw.frase_chave ?? "").trim(),
+    por_que_favorito: String(raw.por_que_favorito ?? "").trim(),
+    odd_referencia_justa: {
+      lado: ladoNorm,
+      valor: Number.isFinite(valorNum) && valorNum > 1 ? Math.round(valorNum * 100) / 100 : null,
+      comentario: String(oddRef.comentario ?? "").trim(),
+    },
     qualidade_dados: String(raw.qualidade_dados ?? "").trim(),
     leitura_odds: String(raw.leitura_odds ?? "").trim(),
     comparacao_referencia: String(raw.comparacao_referencia ?? "").trim(),

@@ -20,11 +20,19 @@ export type PerfilKey =
   | "oportunista"
   | "iniciante";
 
+export interface OddReferenciaJusta {
+  lado: "mandante" | "empate" | "visitante" | null;
+  valor: number | null;
+  comentario: string;
+}
+
 export interface AssistedReadingPayload {
   status: AssistedStatus;
   resumo: string;
   resumo_direto: string;
   frase_chave: string;
+  por_que_favorito: string;
+  odd_referencia_justa: OddReferenciaJusta;
   qualidade_dados: string;
   leitura_odds: string;
   comparacao_referencia: string;
