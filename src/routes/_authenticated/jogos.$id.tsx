@@ -139,7 +139,23 @@ function GameDetail({ game }: { game: Game }) {
 
         <p className="mt-4 text-sm text-muted-foreground">{meta.description}</p>
 
+        {lens && (
+          <div
+            className={`mt-4 rounded-xl border p-4 ${lensTone(lens.tone)}`}
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-widest opacity-80">
+              Leitura para o seu perfil{riskLabel ? ` · ${riskLabel}` : ""}
+            </div>
+            <div className="mt-1 text-base font-semibold">{lens.label}</div>
+            <p className="mt-1 text-sm opacity-90">{lens.description}</p>
+            <p className="mt-2 text-[11px] opacity-70">
+              Leitura baseada em regras objetivas. A decisão final é sempre sua.
+            </p>
+          </div>
+        )}
+
         <div className="mt-6 grid gap-4 md:grid-cols-2">
+
           <section className="rounded-xl border border-border/60 bg-background/30 p-4">
             <h2 className="text-sm font-semibold tracking-tight">
               Referência de mercado
