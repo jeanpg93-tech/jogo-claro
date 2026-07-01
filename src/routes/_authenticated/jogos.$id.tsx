@@ -11,6 +11,9 @@ import {
 import { useGame } from "@/lib/games-data";
 import { isBookBR } from "@/lib/br-books";
 import { KickoffCountdown } from "@/lib/kickoff-countdown";
+import { flagUrl } from "@/lib/team-flags";
+import { bookLogoUrl } from "@/lib/book-logos";
+import { ptTeam } from "@/lib/teams-pt";
 
 type Side = "home" | "draw" | "away";
 const SIDE_LABEL: Record<Side, string> = {
