@@ -243,6 +243,10 @@ export async function runSync(opts: { force?: boolean } = {}): Promise<MultiSync
 
   const gamesInserted = results.reduce((acc, r) => acc + r.gamesInserted, 0);
   const gamesUpdated = results.reduce((acc, r) => acc + r.gamesUpdated, 0);
+
+  // Marca o momento do último sync efetivo (usado pela cadência adaptativa).
+  await setJsonSetting(admin, "last_sync_at", { at: new Date().toISOString() });
+
   return {
     ok: results.every((r) => r.ok),
     results,
@@ -250,6 +254,7 @@ export async function runSync(opts: { force?: boolean } = {}): Promise<MultiSync
     gamesUpdated,
   };
 }
+
 
 async function runOneProvider(
   admin: Admin,
