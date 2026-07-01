@@ -103,17 +103,22 @@ export const Route = createFileRoute("/api/assisted-reading")({
         } catch (err) {
           const msg = err instanceof Error ? err.message : "falha no provedor";
           console.error("[assisted-reading] provider failed:", msg);
-          return Response.json(
-            {
-              status: "error",
-              message: msg,
-            },
-            { status: 502 },
-          );
+          const last = await readLatestReading(gameId);
+          return Response.json({
+            status: "error",
+            message: "A análise por IA ficou indisponível por alguns instantes. Tente novamente em breve.",
+            detail: process.env.NODE_ENV === "development" ? msg : undefined,
+            reading: last,
+          });
         }
 
         if (!out.payload.resumo) {
-          return Response.json({ status: "error", message: "resposta vazia" }, { status: 502 });
+          const last = await readLatestReading(gameId);
+          return Response.json({
+            status: "error",
+            message: "A IA não retornou uma análise completa. Tente gerar novamente.",
+            reading: last,
+          });
         }
         const forbidden = containsForbidden(out.payload);
         if (forbidden) {
