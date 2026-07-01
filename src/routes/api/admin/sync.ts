@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/admin/sync")({
           const isAdmin = await verifyAdminFromToken(token);
           if (!isAdmin) return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
 
-          const result = await runSync();
+          const result = await runSync({ force: true });
           return Response.json(result, { status: 200 });
         } catch (error) {
           console.error("[api/admin/sync] erro inesperado:", error);
