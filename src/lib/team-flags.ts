@@ -39,7 +39,8 @@ const NAME_TO_ISO: Record<string, string> = {
   "espanha": "es", "spain": "es", "suécia": "se", "sweden": "se",
   "suíça": "ch", "switzerland": "ch", "tunísia": "tn", "tunisia": "tn",
   "turquia": "tr", "turkey": "tr", "ucrânia": "ua", "ukraine": "ua",
-  "estados unidos": "us", "united states": "us", "usa": "us",
+  "estados unidos": "us", "estados unidos da américa": "us", "eua": "us",
+  "united states": "us", "united states of america": "us", "usa": "us",
   "uruguai": "uy", "uruguay": "uy",
   "país de gales": "gb-wls", "wales": "gb-wls",
 };
