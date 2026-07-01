@@ -649,11 +649,24 @@ function normalizePayload(raw: Record<string, unknown>): AssistedReadingPayload 
     "sem_oportunidade",
     "oportunidade_analitica",
   ];
+  const oddRef = (raw.odd_referencia_justa ?? {}) as Record<string, unknown>;
+  const ladoRaw = String(oddRef.lado ?? "").trim().toLowerCase();
+  const ladoValid: Array<"mandante" | "empate" | "visitante"> = ["mandante", "empate", "visitante"];
+  const ladoNorm = (ladoValid as string[]).includes(ladoRaw)
+    ? (ladoRaw as "mandante" | "empate" | "visitante")
+    : null;
+  const valorNum = Number(oddRef.valor);
   return {
     status: validStatus.includes(status) ? status : "aguardar_dados",
     resumo: String(raw.resumo ?? "").trim(),
     resumo_direto: String(raw.resumo_direto ?? raw.resumo ?? "").trim(),
     frase_chave: String(raw.frase_chave ?? "").trim(),
+    por_que_favorito: String(raw.por_que_favorito ?? "").trim(),
+    odd_referencia_justa: {
+      lado: ladoNorm,
+      valor: Number.isFinite(valorNum) && valorNum > 1 ? Math.round(valorNum * 100) / 100 : null,
+      comentario: String(oddRef.comentario ?? "").trim(),
+    },
     qualidade_dados: String(raw.qualidade_dados ?? "").trim(),
     leitura_odds: String(raw.leitura_odds ?? "").trim(),
     comparacao_referencia: String(raw.comparacao_referencia ?? "").trim(),
