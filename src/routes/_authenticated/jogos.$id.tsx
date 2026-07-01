@@ -17,6 +17,7 @@ import { ptTeam } from "@/lib/teams-pt";
 import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
 import { profileLens, lensTone } from "@/lib/profile-lens";
 import { RISK_OPTIONS } from "@/lib/analytical-profile";
+import { GameAnalysisSection } from "@/components/game-analysis";
 
 
 type Side = "home" | "draw" | "away";
@@ -153,6 +154,8 @@ function GameDetail({ game }: { game: Game }) {
             </p>
           </div>
         )}
+
+        <GameAnalysisSection game={game} />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
 
