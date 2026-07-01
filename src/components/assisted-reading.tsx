@@ -158,6 +158,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
     },
     onMutate: () => setUiStatus("loading"),
     onSuccess: (json) => {
+      if (json.health) setHealth(json.health);
       if ((json.status === "ready") && json.reading) {
         setReading(json.reading);
         setUiStatus("ready");
