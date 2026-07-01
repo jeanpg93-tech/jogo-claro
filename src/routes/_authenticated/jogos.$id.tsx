@@ -194,6 +194,7 @@ function GameDetail({ game }: { game: Game }) {
                                 onChange={() => setPickBook(b.book)}
                                 className="accent-primary"
                               />
+                              <BookLogoSm book={b.book} />
                               <span>{b.book}</span>
                               {br && (
                                 <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-300">
