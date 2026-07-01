@@ -1,0 +1,49 @@
+// Mapeia nomes de seleções (em PT-BR ou EN) para código ISO 3166-1 alpha-2.
+// Usado para renderizar bandeiras via flagcdn.com (SVG gratuito, sem chave).
+
+const NAME_TO_ISO: Record<string, string> = {
+  // PT-BR
+  "argentina": "ar", "austrália": "au", "australia": "au", "áustria": "at", "austria": "at",
+  "bélgica": "be", "belgium": "be", "bolívia": "bo", "bolivia": "bo",
+  "brasil": "br", "brazil": "br",
+  "camarões": "cm", "cameroon": "cm", "canadá": "ca", "canada": "ca",
+  "chile": "cl", "colômbia": "co", "colombia": "co", "congo dr": "cd",
+  "congo": "cg", "costa rica": "cr", "croácia": "hr", "croatia": "hr",
+  "república tcheca": "cz", "czech republic": "cz", "czechia": "cz",
+  "dinamarca": "dk", "denmark": "dk", "equador": "ec", "ecuador": "ec",
+  "egito": "eg", "egypt": "eg", "inglaterra": "gb-eng", "england": "gb-eng",
+  "finlândia": "fi", "finland": "fi", "frança": "fr", "france": "fr",
+  "alemanha": "de", "germany": "de", "gana": "gh", "ghana": "gh",
+  "grécia": "gr", "greece": "gr", "hungria": "hu", "hungary": "hu",
+  "islândia": "is", "iceland": "is", "irã": "ir", "iran": "ir",
+  "irlanda": "ie", "ireland": "ie", "itália": "it", "italy": "it",
+  "costa do marfim": "ci", "ivory coast": "ci",
+  "japão": "jp", "japan": "jp", "méxico": "mx", "mexico": "mx",
+  "marrocos": "ma", "morocco": "ma", "holanda": "nl", "netherlands": "nl",
+  "nova zelândia": "nz", "new zealand": "nz",
+  "nigéria": "ng", "nigeria": "ng", "macedônia do norte": "mk", "north macedonia": "mk",
+  "irlanda do norte": "gb-nir", "northern ireland": "gb-nir",
+  "noruega": "no", "norway": "no", "panamá": "pa", "panama": "pa",
+  "paraguai": "py", "paraguay": "py", "peru": "pe",
+  "polônia": "pl", "poland": "pl", "portugal": "pt", "catar": "qa", "qatar": "qa",
+  "romênia": "ro", "romania": "ro", "rússia": "ru", "russia": "ru",
+  "arábia saudita": "sa", "saudi arabia": "sa",
+  "escócia": "gb-sct", "scotland": "gb-sct",
+  "senegal": "sn", "sérvia": "rs", "serbia": "rs",
+  "eslováquia": "sk", "slovakia": "sk", "eslovênia": "si", "slovenia": "si",
+  "áfrica do sul": "za", "south africa": "za",
+  "coreia do sul": "kr", "south korea": "kr",
+  "espanha": "es", "spain": "es", "suécia": "se", "sweden": "se",
+  "suíça": "ch", "switzerland": "ch", "tunísia": "tn", "tunisia": "tn",
+  "turquia": "tr", "turkey": "tr", "ucrânia": "ua", "ukraine": "ua",
+  "estados unidos": "us", "united states": "us", "usa": "us",
+  "uruguai": "uy", "uruguay": "uy",
+  "país de gales": "gb-wls", "wales": "gb-wls",
+};
+
+/** Retorna URL da bandeira em SVG ou null se o nome não for uma seleção conhecida. */
+export function flagUrl(teamName: string): string | null {
+  const iso = NAME_TO_ISO[teamName.trim().toLowerCase()];
+  if (!iso) return null;
+  return `https://flagcdn.com/${iso}.svg`;
+}

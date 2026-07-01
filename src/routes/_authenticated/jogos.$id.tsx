@@ -11,6 +11,9 @@ import {
 import { useGame } from "@/lib/games-data";
 import { isBookBR } from "@/lib/br-books";
 import { KickoffCountdown } from "@/lib/kickoff-countdown";
+import { flagUrl } from "@/lib/team-flags";
+import { bookLogoUrl } from "@/lib/book-logos";
+import { ptTeam } from "@/lib/teams-pt";
 
 type Side = "home" | "draw" | "away";
 const SIDE_LABEL: Record<Side, string> = {
@@ -92,9 +95,10 @@ function GameDetail({ game }: { game: Game }) {
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
               {game.competition} · {game.round}
             </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">
-              {game.home} <span className="text-muted-foreground">vs</span>{" "}
-              {game.away}
+            <h1 className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl font-bold tracking-tight md:text-3xl">
+              <TeamWithFlag name={game.home} />
+              <span className="text-muted-foreground">vs</span>
+              <TeamWithFlag name={game.away} />
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <CalendarClock className="h-4 w-4" />
@@ -190,6 +194,7 @@ function GameDetail({ game }: { game: Game }) {
                                 onChange={() => setPickBook(b.book)}
                                 className="accent-primary"
                               />
+                              <BookLogoSm book={b.book} />
                               <span>{b.book}</span>
                               {br && (
                                 <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-300">
@@ -325,5 +330,39 @@ function Stat({ label, value }: { label: string; value: string }) {
       </div>
       <div className="mt-1 text-base font-semibold">{value}</div>
     </div>
+  );
+}
+
+function TeamWithFlag({ name }: { name: string }) {
+  const pt = ptTeam(name);
+  const url = flagUrl(pt) ?? flagUrl(name);
+  return (
+    <span className="inline-flex items-center gap-2">
+      {url && (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          className="h-5 w-8 rounded-sm object-cover ring-1 ring-border/40"
+        />
+      )}
+      <span>{pt}</span>
+    </span>
+  );
+}
+
+function BookLogoSm({ book }: { book: string }) {
+  const src = bookLogoUrl(book, 32);
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.display = "none";
+      }}
+      className="h-5 w-5 rounded-full bg-background object-contain ring-1 ring-border/40"
+    />
   );
 }
