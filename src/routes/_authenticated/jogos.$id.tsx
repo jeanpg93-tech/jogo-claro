@@ -332,3 +332,37 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function TeamWithFlag({ name }: { name: string }) {
+  const pt = ptTeam(name);
+  const url = flagUrl(pt) ?? flagUrl(name);
+  return (
+    <span className="inline-flex items-center gap-2">
+      {url && (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          className="h-5 w-8 rounded-sm object-cover ring-1 ring-border/40"
+        />
+      )}
+      <span>{pt}</span>
+    </span>
+  );
+}
+
+function BookLogoSm({ book }: { book: string }) {
+  const src = bookLogoUrl(book, 32);
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.display = "none";
+      }}
+      className="h-5 w-5 rounded-full bg-background object-contain ring-1 ring-border/40"
+    />
+  );
+}
