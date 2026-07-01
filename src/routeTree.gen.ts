@@ -28,8 +28,10 @@ import { Route as ApiAdminSyncSettingsRouteImport } from './routes/api/admin/syn
 import { Route as ApiAdminSyncRouteImport } from './routes/api/admin/sync'
 import { Route as ApiAdminOddspapiTournamentsRouteImport } from './routes/api/admin/oddspapi-tournaments'
 import { Route as ApiAdminCadenceRouteImport } from './routes/api/admin/cadence'
+import { Route as ApiAdminAiPromptRouteImport } from './routes/api/admin/ai-prompt'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 import { Route as AuthenticatedAdminSincronizacaoRouteImport } from './routes/_authenticated/admin.sincronizacao'
+import { Route as AuthenticatedAdminIaPromptRouteImport } from './routes/_authenticated/admin.ia-prompt'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -127,6 +129,11 @@ const ApiAdminCadenceRoute = ApiAdminCadenceRouteImport.update({
   path: '/api/admin/cadence',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminAiPromptRoute = ApiAdminAiPromptRouteImport.update({
+  id: '/api/admin/ai-prompt',
+  path: '/api/admin/ai-prompt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedJogosIdRoute = AuthenticatedJogosIdRouteImport.update({
   id: '/jogos/$id',
   path: '/jogos/$id',
@@ -136,6 +143,12 @@ const AuthenticatedAdminSincronizacaoRoute =
   AuthenticatedAdminSincronizacaoRouteImport.update({
     id: '/admin/sincronizacao',
     path: '/admin/sincronizacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminIaPromptRoute =
+  AuthenticatedAdminIaPromptRouteImport.update({
+    id: '/admin/ia-prompt',
+    path: '/admin/ia-prompt',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -153,8 +166,10 @@ export interface FileRoutesByFullPath {
   '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/admin/ia-prompt': typeof AuthenticatedAdminIaPromptRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/ai-prompt': typeof ApiAdminAiPromptRoute
   '/api/admin/cadence': typeof ApiAdminCadenceRoute
   '/api/admin/oddspapi-tournaments': typeof ApiAdminOddspapiTournamentsRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
@@ -175,8 +190,10 @@ export interface FileRoutesByTo {
   '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/admin/ia-prompt': typeof AuthenticatedAdminIaPromptRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/ai-prompt': typeof ApiAdminAiPromptRoute
   '/api/admin/cadence': typeof ApiAdminCadenceRoute
   '/api/admin/oddspapi-tournaments': typeof ApiAdminOddspapiTournamentsRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
@@ -199,8 +216,10 @@ export interface FileRoutesById {
   '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/_authenticated/admin/ia-prompt': typeof AuthenticatedAdminIaPromptRoute
   '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
+  '/api/admin/ai-prompt': typeof ApiAdminAiPromptRoute
   '/api/admin/cadence': typeof ApiAdminCadenceRoute
   '/api/admin/oddspapi-tournaments': typeof ApiAdminOddspapiTournamentsRoute
   '/api/admin/sync': typeof ApiAdminSyncRoute
@@ -223,8 +242,10 @@ export interface FileRouteTypes {
     | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/admin/ia-prompt'
     | '/admin/sincronizacao'
     | '/jogos/$id'
+    | '/api/admin/ai-prompt'
     | '/api/admin/cadence'
     | '/api/admin/oddspapi-tournaments'
     | '/api/admin/sync'
@@ -245,8 +266,10 @@ export interface FileRouteTypes {
     | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/admin/ia-prompt'
     | '/admin/sincronizacao'
     | '/jogos/$id'
+    | '/api/admin/ai-prompt'
     | '/api/admin/cadence'
     | '/api/admin/oddspapi-tournaments'
     | '/api/admin/sync'
@@ -268,8 +291,10 @@ export interface FileRouteTypes {
     | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/_authenticated/admin/ia-prompt'
     | '/_authenticated/admin/sincronizacao'
     | '/_authenticated/jogos/$id'
+    | '/api/admin/ai-prompt'
     | '/api/admin/cadence'
     | '/api/admin/oddspapi-tournaments'
     | '/api/admin/sync'
@@ -286,6 +311,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
   ApiAssistedReadingRoute: typeof ApiAssistedReadingRoute
+  ApiAdminAiPromptRoute: typeof ApiAdminAiPromptRoute
   ApiAdminCadenceRoute: typeof ApiAdminCadenceRoute
   ApiAdminOddspapiTournamentsRoute: typeof ApiAdminOddspapiTournamentsRoute
   ApiAdminSyncRoute: typeof ApiAdminSyncRoute
@@ -428,6 +454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminCadenceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/ai-prompt': {
+      id: '/api/admin/ai-prompt'
+      path: '/api/admin/ai-prompt'
+      fullPath: '/api/admin/ai-prompt'
+      preLoaderRoute: typeof ApiAdminAiPromptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/jogos/$id': {
       id: '/_authenticated/jogos/$id'
       path: '/jogos/$id'
@@ -442,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSincronizacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/ia-prompt': {
+      id: '/_authenticated/admin/ia-prompt'
+      path: '/admin/ia-prompt'
+      fullPath: '/admin/ia-prompt'
+      preLoaderRoute: typeof AuthenticatedAdminIaPromptRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -450,6 +490,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDiarioRoute: typeof AuthenticatedDiarioRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPerfilAnaliticoRoute: typeof AuthenticatedPerfilAnaliticoRoute
+  AuthenticatedAdminIaPromptRoute: typeof AuthenticatedAdminIaPromptRoute
   AuthenticatedAdminSincronizacaoRoute: typeof AuthenticatedAdminSincronizacaoRoute
   AuthenticatedJogosIdRoute: typeof AuthenticatedJogosIdRoute
 }
@@ -459,6 +500,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDiarioRoute: AuthenticatedDiarioRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPerfilAnaliticoRoute: AuthenticatedPerfilAnaliticoRoute,
+  AuthenticatedAdminIaPromptRoute: AuthenticatedAdminIaPromptRoute,
   AuthenticatedAdminSincronizacaoRoute: AuthenticatedAdminSincronizacaoRoute,
   AuthenticatedJogosIdRoute: AuthenticatedJogosIdRoute,
 }
@@ -487,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
   ApiAssistedReadingRoute: ApiAssistedReadingRoute,
+  ApiAdminAiPromptRoute: ApiAdminAiPromptRoute,
   ApiAdminCadenceRoute: ApiAdminCadenceRoute,
   ApiAdminOddspapiTournamentsRoute: ApiAdminOddspapiTournamentsRoute,
   ApiAdminSyncRoute: ApiAdminSyncRoute,

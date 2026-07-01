@@ -122,6 +122,20 @@ export async function verifyUserFromToken(token: string): Promise<string | null>
   return data.user.id;
 }
 
+export async function verifyAdminFromToken(token: string): Promise<boolean> {
+  const admin = getAdmin();
+  const { data: userRes, error: uerr } = await admin.auth.getUser(token);
+  if (uerr || !userRes.user) return false;
+  const { data } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userRes.user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+
 export interface CachedReading {
   id: string;
   gameId: string;
@@ -268,6 +282,111 @@ export async function saveReading(row: {
   };
 }
 
+// ----- Prompts versionados (admin) -----
+
+export interface PromptRow {
+  id: string;
+  name: string;
+  version: number;
+  content: string;
+  notes: string | null;
+  active: boolean;
+  created_at: string;
+  created_by: string | null;
+}
+
+export async function listPromptsAdmin(name = "system_main"): Promise<PromptRow[]> {
+  const admin = getAdmin();
+  const { data, error } = await admin
+    .from("ai_prompts")
+    .select("id, name, version, content, notes, active, created_at, created_by")
+    .eq("name", name)
+    .order("version", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PromptRow[];
+}
+
+export async function createPromptAdmin(input: {
+  name?: string;
+  content: string;
+  notes?: string | null;
+  createdBy: string;
+  activate?: boolean;
+}): Promise<PromptRow> {
+  const admin = getAdmin();
+  const name = input.name ?? "system_main";
+  const { data: last } = await admin
+    .from("ai_prompts")
+    .select("version")
+    .eq("name", name)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextVersion = (last?.version ?? 0) + 1;
+  const { data, error } = await admin
+    .from("ai_prompts")
+    .insert({
+      name,
+      version: nextVersion,
+      content: input.content,
+      notes: input.notes ?? null,
+      created_by: input.createdBy,
+      active: false,
+    })
+    .select("id, name, version, content, notes, active, created_at, created_by")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Falha ao salvar prompt");
+  if (input.activate) {
+    await activatePromptAdmin(data.id);
+    return { ...(data as PromptRow), active: true };
+  }
+  return data as PromptRow;
+}
+
+export async function activatePromptAdmin(id: string): Promise<void> {
+  const admin = getAdmin();
+  const { data: row, error: e1 } = await admin
+    .from("ai_prompts")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  if (e1 || !row) throw new Error(e1?.message ?? "Prompt não encontrado");
+  const { error: e2 } = await admin
+    .from("ai_prompts")
+    .update({ active: false })
+    .eq("name", row.name);
+  if (e2) throw new Error(e2.message);
+  const { error: e3 } = await admin
+    .from("ai_prompts")
+    .update({ active: true })
+    .eq("id", id);
+  if (e3) throw new Error(e3.message);
+}
+
+async function getActiveSystemPrompt(): Promise<string> {
+  try {
+    const admin = getAdmin();
+    const { data } = await admin
+      .from("ai_prompts")
+      .select("content")
+      .eq("name", "system_main")
+      .eq("active", true)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const txt = (data?.content ?? "").trim();
+    if (txt.length > 40) return txt;
+  } catch {
+    // fallback silencioso para prompt hardcoded
+  }
+  return SYSTEM_PROMPT;
+}
+
+
+
+// ----- Prompt e chamada ao provedor -----
+
+
 // ----- Prompt e chamada ao provedor -----
 
 const SYSTEM_PROMPT = `Você é um analista esportivo brasileiro, especialista em futebol e leitura de mercado, do produto "Visão de Jogo". Sua função é traduzir números frios (odds, referência, dispersão) em uma leitura clara e responsável para o usuário adulto. Você NÃO é sistema de sinais, tipster nem robô de apostas.
@@ -315,6 +434,10 @@ Responda ESTRITAMENTE em JSON válido:
   "conclusao": string (1 a 2 frases lembrando que a decisão é do usuário e que jogo envolve risco),
   "aguardar_dados_motivo": string ou null (se status="aguardar_dados"/"sem_cobertura", diga o que falta em linguagem simples)
 }`;
+
+export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT;
+
+
 
 function userPrompt(input: AssistedReadingInput): string {
   return `Dados objetivos do jogo (mercado 1X2, apenas números):\n${JSON.stringify(
@@ -368,12 +491,14 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
     (e as Error & { code?: string }).code = "provider_not_configured";
     throw e;
   }
+  const systemPrompt = await getActiveSystemPrompt();
   if (st.provider === "external") {
     const externalOpts = {
       url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
       headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
       model: st.model!,
       input,
+      systemPrompt,
       // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
       requestJson: false,
     };
@@ -394,6 +519,7 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       headers: { "Lovable-API-Key": process.env.LOVABLE_API_KEY! },
       model: st.model!,
       input,
+      systemPrompt,
       requestJson: true,
       maxTokens: envMaxTokens(2200),
     });
@@ -403,10 +529,11 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY!}` },
       model: st.model!,
       input,
+      systemPrompt,
       requestJson: true,
       maxTokens: envMaxTokens(2200),
     });
-  return callAnthropic({ model: st.model!, input });
+  return callAnthropic({ model: st.model!, input, systemPrompt });
 }
 
 async function callOpenAICompatible(opts: {
@@ -417,11 +544,17 @@ async function callOpenAICompatible(opts: {
   requestJson: boolean;
   maxTokens: number;
   compact?: boolean;
+  systemPrompt?: string;
 }): Promise<ProviderCall> {
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
-      { role: "system", content: opts.compact ? COMPACT_SYSTEM_PROMPT : SYSTEM_PROMPT },
+      {
+        role: "system",
+        content: opts.compact
+          ? COMPACT_SYSTEM_PROMPT
+          : (opts.systemPrompt ?? SYSTEM_PROMPT),
+      },
       { role: "user", content: userPrompt(opts.input) },
     ],
     temperature: 0.3,
@@ -458,6 +591,7 @@ async function callOpenAICompatible(opts: {
 async function callAnthropic(opts: {
   model: string;
   input: AssistedReadingInput;
+  systemPrompt?: string;
 }): Promise<ProviderCall> {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -469,7 +603,7 @@ async function callAnthropic(opts: {
     body: JSON.stringify({
       model: opts.model,
       max_tokens: 2200,
-      system: SYSTEM_PROMPT,
+      system: opts.systemPrompt ?? SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt(opts.input) }],
     }),
   });
