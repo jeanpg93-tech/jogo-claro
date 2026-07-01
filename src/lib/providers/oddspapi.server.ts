@@ -1,9 +1,8 @@
-// Adapter OddsPapi.
-// Revisado contra a documentação v4. O fluxo principal NÃO depende mais de
-// /tournaments nem /bookmakers, porque algumas chaves gratuitas retornam 403
-// nesses catálogos. A descoberta agora segue o tutorial oficial da Copa:
-// - /fixtures?sportId=10&from=<janela>&to=<janela> para descobrir jogos/torneios
-// - /odds-by-tournaments?tournamentIds=<ids>&bookmakers=<slug> para odds 1X2
+// Adapter OddsPapi v4.
+// A chave atual do fornecedor é v4: a v5 retorna 401 invalid_api_key.
+// Portanto este arquivo não mistura contratos. Fluxo v4:
+// - /fixtures?sportId=10&from=<janela>&to=<janela>&bookmakers=<slugs>
+// - /odds-by-tournaments?tournamentIds=<ids>&bookmaker=<slug> para odds 1X2
 // - fallback /odds?fixtureId=<id>&bookmakers=<slugs> quando necessário
 // Apenas futebol (sportId=10), mercado 1X2 (home/draw/away).
 // Lê ODDSPAPI_API_KEY do ambiente.
@@ -199,13 +198,19 @@ const TOURNAMENT_ALIASES: Record<string, string> = {
 };
 
 const BOOKMAKER_ALIASES: Record<string, string> = {
-  "betano-br": "betano.bet.br",
+  "betano-br": "betano",
+  "betano.bet.br": "betano",
   "estrela-bet": "estrelabet",
-  "stake-br": "stake.bet.br",
-  "superbet-br": "superbet.bet.br",
-  "sportingbet-br": "sportingbet.bet.br",
-  "betboo-br": "betboo.bet.br",
-  "brazino777-br": "brazino777.bet.br",
+  "stake-br": "stake",
+  "stake.bet.br": "stake",
+  "sportingbet-br": "sportingbet",
+  "sportingbet.bet.br": "sportingbet",
+  "superbet-br": "superbet",
+  "superbet.bet.br": "superbet",
+  "betboo-br": "betboo",
+  "betboo.bet.br": "betboo",
+  "brazino777-br": "brazino777",
+  "brazino777.bet.br": "brazino777",
 };
 
 function normalizeSlugs(values: string[], aliases: Record<string, string>): string[] {
@@ -307,7 +312,23 @@ function fixtureTournamentSlug(row: FixtureListRow): string | null {
   return row.tournamentSlug ?? null;
 }
 
+function looksSyntheticFixture(row: Pick<FixtureListRow, "tournamentName" | "categorySlug" | "categoryName" | "participant1Name" | "participant2Name">): boolean {
+  const text = [
+    row.tournamentName,
+    row.categorySlug,
+    row.categoryName,
+    row.participant1Name,
+    row.participant2Name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /\b(srl|simulated|simulation|virtual|esoccer|e-soccer|simulado|simulada)\b/.test(text);
+}
+
 function fixtureMatchesSelection(row: FixtureListRow, tournamentSlugs: string[]): boolean {
+  if (looksSyntheticFixture(row)) return false;
+
   const slug = fixtureTournamentSlug(row);
   if (slug && tournamentSlugs.includes(slug)) return true;
 
@@ -381,7 +402,11 @@ async function responseText(res: Response): Promise<string> {
   return res.text().catch(() => "");
 }
 
-async function fetchFixtureDiscovery(apiKey: string, tournamentSlugs: string[]): Promise<FixtureListRow[]> {
+async function fetchFixtureDiscovery(
+  apiKey: string,
+  tournamentSlugs: string[],
+  bookmakers: string[],
+): Promise<FixtureListRow[]> {
   // A documentação de /fixtures limita janelas quando usamos sportId+from+to.
   // Usamos blocos de 5 dias para ficar abaixo do limite e cobrir a Copa/rodadas futuras.
   const from = addDays(new Date(), -1);
@@ -399,6 +424,7 @@ async function fetchFixtureDiscovery(apiKey: string, tournamentSlugs: string[]):
       to: ymd(to.getTime() < until.getTime() ? to : until),
       statusId: 0,
       hasOdds: true,
+      bookmakers: bookmakers.join(","),
       language: "pt",
       apiKey,
     });
@@ -474,7 +500,7 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
       // 1) Descobre fixtures por janelas de data, como no guia oficial da Copa.
       // Isso evita depender do catálogo /tournaments, que está retornando 403
       // para esta chave apesar de /fixtures e /odds funcionarem.
-      const discoveredFixtures = await fetchFixtureDiscovery(apiKey, tournamentSlugs);
+      const discoveredFixtures = await fetchFixtureDiscovery(apiKey, tournamentSlugs, bookmakers);
       console.log(
         `[oddspapi] fixtures descobertos: ${discoveredFixtures.length}; slugs solicitados: ${tournamentSlugs.join(",")}`,
       );
@@ -662,6 +688,18 @@ export function createOddsPapiProvider(opts: OddsPapiOptions = {}): OddsProvider
         const away = legacy
           ? fx.participant2Name ?? meta?.participant2Name ?? meta?.participant2ShortName ?? nameByPart.get(p2Id) ?? `Time ${p2Id}`
           : fx.participants?.participant2Name ?? nameByPart.get(p2Id) ?? `Time ${p2Id}`;
+
+        if (
+          looksSyntheticFixture({
+            tournamentName: legacy ? fx.tournamentName : fx.tournament?.tournamentName,
+            categorySlug: legacy ? fx.categorySlug : undefined,
+            categoryName: legacy ? fx.categoryName : fx.tournament?.categoryName ?? undefined,
+            participant1Name: home,
+            participant2Name: away,
+          })
+        ) {
+          continue;
+        }
 
         const books = legacy ? extractLegacyBooks(fx) : extractV5Books(fx, bookmakers);
         if (books.length === 0) continue;
