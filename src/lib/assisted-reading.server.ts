@@ -509,7 +509,7 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       requestJson: false,
     };
     try {
-      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(1600) });
+      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(2000) });
     } catch (err) {
       if (!isRetryableProviderError(err)) throw err;
       console.warn(
