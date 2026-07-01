@@ -116,6 +116,18 @@ function AdminSyncPage() {
   const [showAllRuns, setShowAllRuns] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [cadence, setCadence] = useState<{
+    decision: {
+      skip: boolean;
+      intervalMin: number;
+      reason: string;
+      nextKickoffIso: string | null;
+      minutesUntilKickoff: number | null;
+    };
+    lastSyncAt: string | null;
+    nextEligibleAt: string | null;
+    now: string;
+  } | null>(null);
 
   async function load() {
     setRefreshing(true);
@@ -127,11 +139,26 @@ function AdminSyncPage() {
     setRefreshing(false);
     if (error) toast.error(error.message);
     else setRuns((data ?? []) as SyncRun[]);
+
+    // Cadência adaptativa
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (token) {
+        const res = await fetch("/api/admin/cadence", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) setCadence(await res.json());
+      }
+    } catch {
+      // silencioso — a UI mostra "—" quando cadence for null
+    }
   }
 
   useEffect(() => {
     if (effectiveIsAdmin) load();
   }, [effectiveIsAdmin]);
+
 
   async function triggerSync() {
     setSyncing(true);
@@ -214,7 +241,83 @@ function AdminSyncPage() {
         </div>
       </div>
 
+      <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Cadência adaptativa</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              O cron externo dispara a cada 15 min, mas a chamada real aos
+              provedores só executa conforme a regra abaixo. "Sincronizar agora"
+              ignora esta regra.
+            </p>
+          </div>
+          {cadence && (
+            <span
+              className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                cadence.decision.skip
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-primary/10 text-primary"
+              }`}
+            >
+              {cadence.decision.skip
+                ? "Aguardando janela"
+                : `A cada ${cadence.decision.intervalMin} min`}
+            </span>
+          )}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border border-border/60 bg-background/50 p-3">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              Regra atual
+            </div>
+            <div className="mt-1 font-medium">
+              {cadence?.decision.reason ?? "—"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/50 p-3">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              Próximo jogo
+            </div>
+            <div className="mt-1 font-medium">
+              {cadence?.decision.nextKickoffIso
+                ? `${new Date(cadence.decision.nextKickoffIso).toLocaleString("pt-BR")} · em ${cadence.decision.minutesUntilKickoff} min`
+                : "Nenhum nas próximas 24h"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/50 p-3">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              Próxima sync prevista
+            </div>
+            <div className="mt-1 font-medium">
+              {cadence?.decision.skip
+                ? "—"
+                : cadence?.nextEligibleAt
+                  ? new Date(cadence.nextEligibleAt).toLocaleString("pt-BR")
+                  : "No próximo disparo do cron"}
+            </div>
+            {cadence?.lastSyncAt && (
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Última: {new Date(cadence.lastSyncAt).toLocaleString("pt-BR")}
+              </div>
+            )}
+          </div>
+        </div>
+        <details className="mt-4 text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Ver tabela de cadência</summary>
+          <ul className="mt-2 space-y-1 pl-4">
+            <li>• Nenhum jogo nas próximas 24h → não roda</li>
+            <li>• Próximo jogo &gt; 12h → não roda</li>
+            <li>• Próximo jogo 6h–12h → 1x por hora</li>
+            <li>• Próximo jogo 2h–6h → 1x por hora</li>
+            <li>• Próximo jogo 1h–2h → 1x a cada 30 min</li>
+            <li>• Próximo jogo &lt; 1h ou em curso → 1x a cada 15 min</li>
+            <li>• Madrugada local 00h–06h sem jogo iminente → não roda</li>
+          </ul>
+        </details>
+      </section>
+
       <CollapsibleSection
+
         title="Histórico de sincronizações"
         subtitle="Últimas execuções (manuais e via cron)."
         badge={

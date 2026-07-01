@@ -46,11 +46,150 @@ export interface MultiSyncResult {
   // Agregado, para compatibilidade com a UI atual.
   gamesInserted: number;
   gamesUpdated: number;
+  skipped?: boolean;
+  skipReason?: string;
+  nextEligibleAt?: string;
 }
 
-export async function runSync(): Promise<MultiSyncResult> {
+export interface CadenceDecision {
+  skip: boolean;
+  intervalMin: number; // 0 quando skip=true
+  reason: string;
+  nextKickoffIso: string | null;
+  minutesUntilKickoff: number | null;
+}
+
+// Regras acordadas com o usuário (cadência adaptativa):
+// - Nenhum jogo nas próximas 24h  → não roda
+// - Próximo jogo > 12h             → não roda
+// - Próximo jogo 6h–12h            → 1x por hora
+// - Próximo jogo 2h–6h             → 1x por hora
+// - Próximo jogo 1h–2h             → 1x a cada 30 min
+// - Próximo jogo < 1h ou em curso  → 1x a cada 15 min
+// - Madrugada local 00h–06h sem jogo iminente (<1h) → não roda
+export function computeCadence(
+  nextKickoffMs: number | null,
+  nowMs: number,
+): CadenceDecision {
+  // Hora local em São Paulo (UTC-3, sem DST atualmente).
+  const localHour = new Date(nowMs - 3 * 60 * 60 * 1000).getUTCHours();
+  const isMadrugada = localHour >= 0 && localHour < 6;
+
+  if (nextKickoffMs === null) {
+    return {
+      skip: true,
+      intervalMin: 0,
+      reason: "Nenhum jogo nas próximas 24h.",
+      nextKickoffIso: null,
+      minutesUntilKickoff: null,
+    };
+  }
+
+  const minutes = Math.round((nextKickoffMs - nowMs) / 60000);
+  const nextIso = new Date(nextKickoffMs).toISOString();
+  const base = { nextKickoffIso: nextIso, minutesUntilKickoff: minutes };
+
+  // Já em curso ou faltando menos de 1h → 15 min
+  if (minutes < 60) {
+    return { skip: false, intervalMin: 15, reason: "Jogo em <1h ou em curso.", ...base };
+  }
+  // 1h–2h → 30 min
+  if (minutes < 120) {
+    return { skip: false, intervalMin: 30, reason: "Jogo em 1h–2h.", ...base };
+  }
+  // 2h–12h → 60 min
+  if (minutes < 12 * 60) {
+    if (isMadrugada) {
+      return {
+        skip: true,
+        intervalMin: 0,
+        reason: "Madrugada local (00h–06h) sem jogo iminente.",
+        ...base,
+      };
+    }
+    return { skip: false, intervalMin: 60, reason: "Jogo em 2h–12h.", ...base };
+  }
+  // >12h → não roda
+  return {
+    skip: true,
+    intervalMin: 0,
+    reason: "Próximo jogo em mais de 12h.",
+    ...base,
+  };
+}
+
+async function getNextKickoffMs(admin: Admin, nowIso: string): Promise<number | null> {
+  const { data } = await admin
+    .from("games")
+    .select("kickoff")
+    .gte("kickoff", nowIso)
+    .order("kickoff", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!data?.kickoff) return null;
+  const ms = new Date(data.kickoff as string).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export async function runSync(opts: { force?: boolean } = {}): Promise<MultiSyncResult> {
   const admin = getAdmin();
+
+  // Cadência adaptativa: decide se realmente executa esta janela.
+  // O disparo externo (cron-job.org) continua batendo a cada 15 min,
+  // mas só chamamos a API dos provedores quando a regra permite.
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const nextKickoffMs = await getNextKickoffMs(admin, nowIso);
+  const decision = computeCadence(nextKickoffMs, nowMs);
+  const lastRun = await getJsonSetting<{ at: string }>(admin, "last_sync_at");
+  const lastMs = lastRun?.at ? new Date(lastRun.at).getTime() : 0;
+
+  if (!opts.force) {
+    if (decision.skip) {
+      await admin.from("sync_runs").insert({
+        started_at: nowIso,
+        finished_at: nowIso,
+        provider: "scheduler",
+        games_inserted: 0,
+        games_updated: 0,
+        odds_inserted: 0,
+        error: `SKIP: ${decision.reason}`,
+      });
+      return {
+        ok: true,
+        results: [],
+        gamesInserted: 0,
+        gamesUpdated: 0,
+        skipped: true,
+        skipReason: decision.reason,
+      };
+    }
+    const minSinceLast = (nowMs - lastMs) / 60000;
+    if (lastMs > 0 && minSinceLast + 0.5 < decision.intervalMin) {
+      const nextEligibleMs = lastMs + decision.intervalMin * 60000;
+      await admin.from("sync_runs").insert({
+        started_at: nowIso,
+        finished_at: nowIso,
+        provider: "scheduler",
+        games_inserted: 0,
+        games_updated: 0,
+        odds_inserted: 0,
+        error: `SKIP: intervalo ${decision.intervalMin}min (${decision.reason}) — último sync há ${Math.round(minSinceLast)}min.`,
+      });
+      return {
+        ok: true,
+        results: [],
+        gamesInserted: 0,
+        gamesUpdated: 0,
+        skipped: true,
+        skipReason: `Aguardando cadência de ${decision.intervalMin}min (${decision.reason}).`,
+        nextEligibleAt: new Date(nextEligibleMs).toISOString(),
+      };
+    }
+  }
+
   const enabled = await getProvidersEnabled(admin);
+
 
   const tasks: Array<{ name: ProviderName; provider: OddsProvider; activeLabels: string[] }> = [];
 
@@ -104,6 +243,10 @@ export async function runSync(): Promise<MultiSyncResult> {
 
   const gamesInserted = results.reduce((acc, r) => acc + r.gamesInserted, 0);
   const gamesUpdated = results.reduce((acc, r) => acc + r.gamesUpdated, 0);
+
+  // Marca o momento do último sync efetivo (usado pela cadência adaptativa).
+  await setJsonSetting(admin, "last_sync_at", { at: new Date().toISOString() });
+
   return {
     ok: results.every((r) => r.ok),
     results,
@@ -111,6 +254,7 @@ export async function runSync(): Promise<MultiSyncResult> {
     gamesUpdated,
   };
 }
+
 
 async function runOneProvider(
   admin: Admin,
@@ -263,6 +407,34 @@ export async function verifyAdminFromToken(token: string): Promise<boolean> {
     .select("role")
     .eq("user_id", data.user.id);
   return Boolean(roles?.some((r) => r.role === "admin"));
+}
+
+export interface CadenceStatus {
+  decision: CadenceDecision;
+  lastSyncAt: string | null;
+  nextEligibleAt: string | null;
+  now: string;
+}
+
+export async function getCadenceStatusAdmin(): Promise<CadenceStatus> {
+  const admin = getAdmin();
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const nextKickoffMs = await getNextKickoffMs(admin, nowIso);
+  const decision = computeCadence(nextKickoffMs, nowMs);
+  const lastRun = await getJsonSetting<{ at: string }>(admin, "last_sync_at");
+  const lastMs = lastRun?.at ? new Date(lastRun.at).getTime() : 0;
+  const nextEligibleMs = decision.skip
+    ? null
+    : lastMs > 0
+      ? lastMs + decision.intervalMin * 60000
+      : nowMs;
+  return {
+    decision,
+    lastSyncAt: lastRun?.at ?? null,
+    nextEligibleAt: nextEligibleMs ? new Date(nextEligibleMs).toISOString() : null,
+    now: nowIso,
+  };
 }
 
 // ---------- app_settings helpers ----------
