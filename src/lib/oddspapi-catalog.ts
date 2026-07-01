@@ -44,8 +44,8 @@ export const ODDSPAPI_BOOKMAKERS: OddsPapiBookmaker[] = [
   { slug: "bet365", label: "bet365", isBR: true },
   { slug: "kto", label: "KTO", isBR: true },
   { slug: "estrelabet", label: "Estrela Bet", isBR: true },
-  { slug: "stake.bet.br", label: "Stake BR", isBR: true },
-  { slug: "sportingbet.bet.br", label: "Sportingbet BR", isBR: true },
+  { slug: "stake", label: "Stake", isBR: true },
+  { slug: "sportingbet", label: "Sportingbet", isBR: true },
   // Sharps / referência
   { slug: "pinnacle", label: "Pinnacle Sports", isBR: false },
   { slug: "betfair-exchange", label: "Betfair Exchange", isBR: false },

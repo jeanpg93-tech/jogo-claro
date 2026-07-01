@@ -1,7 +1,7 @@
 // Lista ao vivo os torneios disponíveis no OddsPapi (sportId=10, futebol).
 // Útil para o admin descobrir os slugs reais a usar no seletor.
 import { createFileRoute } from "@tanstack/react-router";
-import { ODDSPAPI_TOURNAMENTS } from "@/lib/oddspapi-catalog";
+import { DEFAULT_ODDSPAPI_BOOKMAKERS, ODDSPAPI_TOURNAMENTS } from "@/lib/oddspapi-catalog";
 
 export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
   server: {
@@ -67,6 +67,7 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
           url.searchParams.set("to", ymd(to.getTime() < until.getTime() ? to : until));
           url.searchParams.set("statusId", "0");
           url.searchParams.set("hasOdds", "true");
+          url.searchParams.set("bookmakers", DEFAULT_ODDSPAPI_BOOKMAKERS.join(","));
           url.searchParams.set("language", "pt");
           url.searchParams.set("apiKey", apiKey);
           const res = await fetch(url.toString(), { headers: ODDSPAPI_HEADERS });
@@ -79,6 +80,10 @@ export const Route = createFileRoute("/api/admin/oddspapi-tournaments")({
             }>;
             for (const f of fixtures) {
               if (!f.tournamentId || !f.tournamentName) continue;
+              const text = `${f.tournamentName ?? ""} ${f.categoryName ?? ""}`.toLowerCase();
+              if (/\b(srl|simulated|simulation|virtual|esoccer|e-soccer|simulado|simulada)\b/.test(text)) {
+                continue;
+              }
               discovered.set(f.tournamentId, {
                 tournamentId: f.tournamentId,
                 tournamentSlug: f.tournamentSlug ?? String(f.tournamentId),
