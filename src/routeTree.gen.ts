@@ -18,6 +18,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthEntrarRouteImport } from './routes/auth.entrar'
 import { Route as AuthCadastroRouteImport } from './routes/auth.cadastro'
+import { Route as AuthenticatedPerfilAnaliticoRouteImport } from './routes/_authenticated/perfil-analitico'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedDiarioRouteImport } from './routes/_authenticated/diario'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -73,6 +74,12 @@ const AuthCadastroRoute = AuthCadastroRouteImport.update({
   path: '/cadastro',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthenticatedPerfilAnaliticoRoute =
+  AuthenticatedPerfilAnaliticoRouteImport.update({
+    id: '/perfil-analitico',
+    path: '/perfil-analitico',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diario': typeof AuthenticatedDiarioRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/perfil-analitico': typeof AuthenticatedPerfilAnaliticoRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
@@ -156,6 +164,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diario': typeof AuthenticatedDiarioRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/perfil-analitico': typeof AuthenticatedPerfilAnaliticoRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
@@ -178,6 +187,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/diario': typeof AuthenticatedDiarioRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/perfil-analitico': typeof AuthenticatedPerfilAnaliticoRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diario'
     | '/perfil'
+    | '/perfil-analitico'
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/admin/sincronizacao'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diario'
     | '/perfil'
+    | '/perfil-analitico'
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/admin/sincronizacao'
@@ -241,6 +253,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/diario'
     | '/_authenticated/perfil'
+    | '/_authenticated/perfil-analitico'
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/_authenticated/admin/sincronizacao'
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCadastroRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_authenticated/perfil-analitico': {
+      id: '/_authenticated/perfil-analitico'
+      path: '/perfil-analitico'
+      fullPath: '/perfil-analitico'
+      preLoaderRoute: typeof AuthenticatedPerfilAnaliticoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/perfil': {
       id: '/_authenticated/perfil'
       path: '/perfil'
@@ -409,6 +429,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDiarioRoute: typeof AuthenticatedDiarioRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedPerfilAnaliticoRoute: typeof AuthenticatedPerfilAnaliticoRoute
   AuthenticatedAdminSincronizacaoRoute: typeof AuthenticatedAdminSincronizacaoRoute
   AuthenticatedJogosIdRoute: typeof AuthenticatedJogosIdRoute
 }
@@ -417,6 +438,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDiarioRoute: AuthenticatedDiarioRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedPerfilAnaliticoRoute: AuthenticatedPerfilAnaliticoRoute,
   AuthenticatedAdminSincronizacaoRoute: AuthenticatedAdminSincronizacaoRoute,
   AuthenticatedJogosIdRoute: AuthenticatedJogosIdRoute,
 }

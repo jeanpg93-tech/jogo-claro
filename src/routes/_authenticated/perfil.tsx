@@ -6,11 +6,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { RULES } from "@/lib/demo-games";
 import { useGames } from "@/lib/games-data";
+import { AnalyticalProfileForm } from "@/components/analytical-profile-form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+
 
 export const Route = createFileRoute("/_authenticated/perfil")({
   head: () => ({ meta: [{ title: "Perfil — Visão de Jogo" }] }),
@@ -130,6 +132,18 @@ function PerfilPage() {
       </section>
 
       <section className="mt-10 rounded-xl border border-border/60 bg-card p-5">
+        <h2 className="text-lg font-semibold">Perfil analítico</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Como você acompanha jogos e mercados. Usamos para calibrar destaques,
+          alertas e riscos — nunca para decidir por você.
+        </p>
+        <div className="mt-5">
+          <AnalyticalProfileForm />
+        </div>
+      </section>
+
+      <section className="mt-10 rounded-xl border border-border/60 bg-card p-5">
+
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Preferências</h2>
           {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
