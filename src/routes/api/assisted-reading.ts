@@ -104,9 +104,14 @@ export const Route = createFileRoute("/api/assisted-reading")({
         // 4) Chama provedor externo
         let out;
         try {
+        // 4) Chama provedor externo
+        let out;
+        try {
           out = await callProvider(input);
+          recordProviderSuccess();
         } catch (err) {
           const msg = err instanceof Error ? err.message : "falha no provedor";
+          recordProviderFailure(msg);
           console.error("[assisted-reading] provider failed:", msg);
           const last = await readLatestReading(gameId);
           const isRate = /429|rate.?limit|sobrecarreg|overload/i.test(msg);
@@ -116,17 +121,21 @@ export const Route = createFileRoute("/api/assisted-reading")({
               ? "O provedor de IA está sobrecarregado agora. Aguarde alguns minutos e tente de novo — a análise anterior continua disponível abaixo."
               : "A análise por IA ficou indisponível por alguns instantes. Tente novamente em breve.",
             detail: process.env.NODE_ENV === "development" ? msg : undefined,
+            health: getProviderHealth(),
             reading: last,
           });
         }
 
         if (!out.payload.resumo) {
+          recordProviderFailure("resposta incompleta do provedor");
           const last = await readLatestReading(gameId);
           return Response.json({
             status: "error",
             message: "A IA não retornou uma análise completa. Tente gerar novamente.",
+            health: getProviderHealth(),
             reading: last,
           });
+        }
         }
         const forbidden = containsForbidden(out.payload);
         if (forbidden) {
