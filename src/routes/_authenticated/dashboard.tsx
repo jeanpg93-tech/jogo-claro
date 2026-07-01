@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { CalendarClock, Filter, Loader2, Search } from "lucide-react";
+import { Filter, Loader2, Search } from "lucide-react";
 import {
   STATUS_META,
   classifyGame,
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/hooks/use-role";
-import { KickoffCountdown } from "@/lib/kickoff-countdown";
+import { GameRow } from "@/components/game-row";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
