@@ -581,39 +581,106 @@ async function callOpenAICompatible(opts: {
   };
 }
 
-async function callAnthropic(opts: {
-  model: string;
-  input: AssistedReadingInput;
-  systemPrompt?: string;
-}): Promise<ProviderCall> {
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: opts.model,
-      max_tokens: 2200,
-      system: opts.systemPrompt ?? SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt(opts.input) }],
-    }),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error(`Anthropic ${resp.status}: ${txt.slice(0, 200)}`);
+// (callAnthropic removido — provedor travado no Gateway externo)
+
+// ------------------------------------------------------------------
+// Montagem SERVER-SIDE do input da IA a partir do Supabase.
+// O frontend só envia gameId. Aqui recomputamos coverage/consensus
+// idêntico ao que analyzeGame() faz no cliente, para que o pacote
+// enviado à IA seja auditável e não manipulável pelo navegador.
+// ------------------------------------------------------------------
+
+function impliedProb(odd: number): number {
+  return odd > 0 ? 1 / odd : 0;
+}
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+}
+
+export async function buildAssistedReadingInputFromDb(
+  externalId: string,
+): Promise<AssistedReadingInput | null> {
+  const admin = getAdmin();
+  const { data: game } = await admin
+    .from("games")
+    .select("id, external_id, competition, round, home, away, kickoff, updated_at")
+    .eq("external_id", externalId)
+    .maybeSingle();
+  if (!game) return null;
+  const [{ data: oddsRows }, { data: refRow }] = await Promise.all([
+    admin.from("game_odds").select("side, book, odd").eq("game_id", game.id),
+    admin
+      .from("game_reference")
+      .select("home, draw, away")
+      .eq("game_id", game.id)
+      .maybeSingle(),
+  ]);
+
+  type Row = { side: "home" | "draw" | "away"; book: string; odd: number };
+  const byBook = new Map<string, { book: string; home: number; draw: number; away: number }>();
+  for (const o of (oddsRows ?? []) as Row[]) {
+    const entry = byBook.get(o.book) ?? { book: o.book, home: 0, draw: 0, away: 0 };
+    entry[o.side] = Number(o.odd);
+    byBook.set(o.book, entry);
   }
-  const j = (await resp.json()) as {
-    content: Array<{ type: string; text: string }>;
-    usage?: { input_tokens?: number; output_tokens?: number };
-  };
-  const raw = j.content?.find((c) => c.type === "text")?.text ?? "{}";
-  const payload = normalizePayload(safeJson(raw));
+  const books = Array.from(byBook.values()).filter((b) => b.home && b.draw && b.away);
+  const reference = refRow
+    ? { home: Number(refRow.home), draw: Number(refRow.draw), away: Number(refRow.away) }
+    : null;
+
+  const BR_HINT =
+    /(betano|bet365|kto|pixbet|sportingbet|betnacional|superbet|estrelabet|betfair|blaze|galera|betsul|bet7k|betmgm\.br)/i;
+  const brBooks = books.filter((b) => BR_HINT.test(b.book)).length;
+
+  const ageMs = game.updated_at ? Date.now() - new Date(game.updated_at).getTime() : Infinity;
+  const ageHours = isFinite(ageMs) ? ageMs / 3_600_000 : Infinity;
+
+  const sides: AssistedReadingInput["consensus"] = (
+    ["home", "draw", "away"] as const
+  ).map((side) => {
+    const odds = books.map((b) => b[side]).filter((o) => o > 0);
+    const bestO = odds.length ? Math.max(...odds) : 0;
+    const worstO = odds.length ? Math.min(...odds) : 0;
+    const impliedPcts = odds.map((o) => impliedProb(o) * 100);
+    const mean = impliedPcts.length
+      ? impliedPcts.reduce((a, b) => a + b, 0) / impliedPcts.length
+      : 0;
+    const refPct = reference ? impliedProb(reference[side]) * 100 : null;
+    const edge = refPct !== null && bestO > 0 ? refPct - impliedProb(bestO) * 100 : null;
+    const spread =
+      odds.length >= 2 ? impliedProb(worstO) * 100 - impliedProb(bestO) * 100 : 0;
+    return {
+      side,
+      bestOdd: bestO,
+      worstOdd: worstO,
+      medianOdd: median(odds),
+      meanImpliedPct: mean,
+      refImpliedPct: refPct,
+      edgePp: edge,
+      spreadPp: spread,
+    };
+  });
+
   return {
-    payload,
-    tokensIn: j.usage?.input_tokens ?? 0,
-    tokensOut: j.usage?.output_tokens ?? 0,
+    gameId: game.external_id,
+    competition: game.competition,
+    round: game.round ?? "—",
+    home: game.home,
+    away: game.away,
+    kickoffISO: game.kickoff,
+    updatedAtISO: game.updated_at,
+    demo: false,
+    coverage: {
+      totalBooks: books.length,
+      brBooks,
+      hasReference: Boolean(reference),
+      ageHours,
+      fresh: ageHours <= 24,
+    },
+    consensus: sides,
   };
 }
 
