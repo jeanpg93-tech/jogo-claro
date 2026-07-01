@@ -1,38 +1,52 @@
-// Fase 4 — Shell da "Leitura assistida" (IA externa).
-// Nesta fase NÃO chamamos nenhuma IA. Só definimos:
-// - o contrato do prompt/entrada que uma IA externa receberá no futuro;
-// - a feature flag global (desligada por padrão);
-// - a tipagem dos registros persistidos em `ai_readings` (Fase 5).
-//
-// Regras firmes:
-// - A IA nativa do Lovable NUNCA será usada neste produto.
-// - Quando ligada, a Fase 5 chamará um provedor externo com chave em Secret
-//   server-side (nunca no bundle) via `createServerFn`.
-// - A leitura assistida é opcional, informativa e nunca contém "aposte agora",
-//   "palpite", "lucro", "garantido" ou linguagem equivalente.
+// Fase 6 — Contrato da "Análise assistida por jogo".
+// Uma análise por jogo, cacheada e reutilizada para todos os usuários.
+// A IA é externa (nunca a IA nativa do Lovable) e a chave fica em Secret.
 
 import type { Game } from "@/lib/demo-games";
 import { analyzeGame } from "@/lib/game-analysis";
 
-// Fase 5 — cliente sempre pode CHAMAR o endpoint; o backend decide se está
-// configurado (env `ASSISTED_AI_PROVIDER` + chave) e responde
-// `status: "not_configured"` quando não estiver. Enquanto isso o shell é
-// exibido normalmente. Nunca chamamos IA nativa do Lovable no produto.
 export const ASSISTED_READING_ENABLED = true;
 
-export type AssistedReadingStatus =
-  | "disabled" // shell exibido, IA não configurada ainda
-  | "not_configured" // backend respondeu que não há provedor/chave
-  | "insufficient_data" // dados objetivos insuficientes
-  | "empty" // ainda não gerada para este jogo (aguarda clique)
-  | "loading" // chamada em andamento
-  | "ready" // leitura gerada (cache ou fresca)
-  | "stale" // dados mudaram desde a última geração
-  | "blocked" // saída rejeitada por termo proibido
-  | "error"; // provedor externo falhou
+export type AssistedStatus =
+  | "sem_cobertura"
+  | "aguardar_dados"
+  | "sem_oportunidade"
+  | "oportunidade_analitica";
 
-// Contrato que a IA externa receberá. Apenas números e rótulos objetivos
-// derivados das odds e da referência. Sem opiniões, sem histórico de aposta.
+export type PerfilKey =
+  | "conservador"
+  | "equilibrado"
+  | "agressivo"
+  | "oportunista"
+  | "iniciante";
+
+export interface AssistedReadingPayload {
+  status: AssistedStatus;
+  resumo: string;
+  qualidade_dados: string;
+  leitura_odds: string;
+  comparacao_referencia: string;
+  riscos: string[];
+  pontos_atencao: string[];
+  perfis: Record<PerfilKey, string>;
+  conclusao: string;
+  aguardar_dados_motivo: string | null;
+}
+
+export type AssistedReadingUiStatus =
+  | "disabled"
+  | "not_configured"
+  | "insufficient_data"
+  | "empty"
+  | "loading"
+  | "ready"
+  | "stale"
+  | "blocked"
+  | "quota_exceeded"
+  | "error";
+
+// O que a IA externa recebe: apenas números objetivos. Cache é por jogo,
+// não por usuário — a análise base é a mesma para todos.
 export interface AssistedReadingInput {
   gameId: string;
   competition: string;
@@ -59,32 +73,6 @@ export interface AssistedReadingInput {
     edgePp: number | null;
     spreadPp: number;
   }>;
-  // Restrições que o provedor externo DEVE respeitar no output.
-  constraints: {
-    language: "pt-BR";
-    maxWords: 120;
-    forbiddenTerms: [
-      "aposte", "aposte agora", "palpite", "palpite certeiro",
-      "lucro", "lucro certo", "renda", "renda extra",
-      "garantido", "certeza", "infalível", "robô vencedor",
-    ];
-    mustInclude: [
-      "linguagem responsável",
-      "menciona que a decisão final é do usuário",
-    ];
-  };
-}
-
-export interface AssistedReading {
-  id: string;
-  gameId: string;
-  provider: string; // ex: "openai:gpt-5-mini" (definido em Fase 5)
-  createdAt: string;
-  inputHash: string; // hash do AssistedReadingInput no momento da geração
-  summary: string; // texto curto em pt-BR
-  cautions: string[]; // pontos de atenção objetivos
-  tokensIn: number;
-  tokensOut: number;
 }
 
 export function buildAssistedReadingInput(game: Game): AssistedReadingInput {
@@ -109,37 +97,5 @@ export function buildAssistedReadingInput(game: Game): AssistedReadingInput {
       edgePp: s.edgePp,
       spreadPp: s.spreadPp,
     })),
-    constraints: {
-      language: "pt-BR",
-      maxWords: 120,
-      forbiddenTerms: [
-        "aposte", "aposte agora", "palpite", "palpite certeiro",
-        "lucro", "lucro certo", "renda", "renda extra",
-        "garantido", "certeza", "infalível", "robô vencedor",
-      ],
-      mustInclude: [
-        "linguagem responsável",
-        "menciona que a decisão final é do usuário",
-      ],
-    },
   };
-}
-
-// Estado calculado (sem chamar IA). A Fase 5 substituirá parte disto
-// consultando a tabela `ai_readings` no Supabase.
-export function computeAssistedStatus(
-  game: Game,
-  existing: AssistedReading | null = null,
-): AssistedReadingStatus {
-  if (!ASSISTED_READING_ENABLED) return "disabled";
-  const a = analyzeGame(game);
-  if (!a.coverage.hasReference || a.coverage.totalBooks < 3) {
-    return "insufficient_data";
-  }
-  if (!existing) return "empty";
-  // heurística simples: se dados mudaram há mais de 3h desde a geração
-  const generatedAt = new Date(existing.createdAt).getTime();
-  const updatedAt = game.updatedAt ? new Date(game.updatedAt).getTime() : 0;
-  if (updatedAt > generatedAt + 3 * 3600_000) return "stale";
-  return "ready";
 }
