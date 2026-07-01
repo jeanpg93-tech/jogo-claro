@@ -47,9 +47,13 @@ export interface ProviderStatus {
 
 export function getProviderStatus(): ProviderStatus {
   const raw = (process.env.ASSISTED_AI_PROVIDER ?? "").trim().toLowerCase();
-  const provider = (["external", "lovable", "openai", "anthropic"].includes(raw)
+  let provider = (["external", "lovable", "openai", "anthropic"].includes(raw)
     ? raw
     : "") as ProviderId;
+  // Auto-detect: se as envs do gateway externo estão presentes, assume "external".
+  if (!provider && process.env.AI_GATEWAY_BASE_URL && process.env.AI_GATEWAY_API_KEY) {
+    provider = "external";
+  }
   if (!provider) {
     return { provider: "", configured: false, model: null, reason: "ASSISTED_AI_PROVIDER não definido" };
   }
