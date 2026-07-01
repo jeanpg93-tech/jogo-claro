@@ -163,6 +163,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
       } else {
         setUiStatus("error");
         setProviderMsg(json.message ?? "Falha desconhecida.");
+        if (json.reading) setReading(json.reading);
       }
     },
     onError: (err) => {
