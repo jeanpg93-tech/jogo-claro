@@ -310,23 +310,40 @@ function LoadingSkeleton() {
 function ReadingBody({
   reading,
   userPerfil,
+  mode,
 }: {
   reading: CachedReading;
   userPerfil: PerfilKey;
+  mode: "direta" | "detalhada";
 }) {
   const p = reading.payload;
   const statusMeta = STATUS_LABEL[p.status];
   const StatusIcon = statusMeta.icon;
+  const isDireta = mode === "direta";
 
   return (
     <div className="mt-5 space-y-4">
-      {/* Status + resumo */}
+      {/* Frase-chave */}
+      {p.frase_chave && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-emerald-200">
+            Em uma frase
+          </div>
+          <p className="mt-1 text-base font-medium leading-snug">{p.frase_chave}</p>
+        </div>
+      )}
+
+      {/* Status + resumo (curto na Direta, completo na Detalhada) */}
       <div className={`rounded-xl border p-4 ${statusMeta.tone}`}>
         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest opacity-80">
           <StatusIcon className="h-3.5 w-3.5" /> Status da análise
         </div>
         <div className="mt-1 text-lg font-semibold">{statusMeta.label}</div>
-        {p.resumo && <p className="mt-2 text-sm leading-relaxed">{p.resumo}</p>}
+        {(isDireta ? p.resumo_direto || p.resumo : p.resumo) && (
+          <p className="mt-2 text-sm leading-relaxed">
+            {isDireta ? p.resumo_direto || p.resumo : p.resumo}
+          </p>
+        )}
         {p.aguardar_dados_motivo && (
           <p className="mt-2 text-[12px] opacity-80">
             <b>O que falta:</b> {p.aguardar_dados_motivo}
@@ -334,12 +351,14 @@ function ReadingBody({
         )}
       </div>
 
-      {/* Blocos analíticos */}
-      <div className="grid gap-3 md:grid-cols-3">
-        <InfoCard icon={Database} title="Qualidade dos dados" text={p.qualidade_dados} />
-        <InfoCard icon={Gauge} title="Leitura das odds" text={p.leitura_odds} />
-        <InfoCard icon={Scale} title="Comparação com referência" text={p.comparacao_referencia} />
-      </div>
+      {/* Blocos analíticos — só na Detalhada */}
+      {!isDireta && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <InfoCard icon={Database} title="Qualidade dos dados" text={p.qualidade_dados} />
+          <InfoCard icon={Gauge} title="Leitura das odds" text={p.leitura_odds} />
+          <InfoCard icon={Scale} title="Comparação com referência" text={p.comparacao_referencia} />
+        </div>
+      )}
 
       {/* Riscos + atenção */}
       <div className="grid gap-3 md:grid-cols-2">
