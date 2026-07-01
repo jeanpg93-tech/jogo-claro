@@ -317,8 +317,8 @@ export function AssistedReadingSection({ game }: { game: Game }) {
       {/* Skeleton de carregamento */}
       {uiStatus === "loading" && <LoadingSkeleton />}
 
-      {/* Estado inline / erros */}
-      {uiStatus !== "ready" && uiStatus !== "loading" && (
+      {/* Estado inline / erros — não mostra o InlineState do "stale" porque o banner acima já cobre */}
+      {uiStatus !== "ready" && uiStatus !== "loading" && uiStatus !== "stale" && (
         <InlineState status={uiStatus} message={providerMsg} dataOk={dataOk} />
       )}
 
