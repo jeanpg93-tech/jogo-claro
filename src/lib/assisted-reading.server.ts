@@ -368,7 +368,7 @@ async function getActiveSystemPrompt(): Promise<string> {
   return SYSTEM_PROMPT;
 }
 
-export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT;
+
 
 // ----- Prompt e chamada ao provedor -----
 
