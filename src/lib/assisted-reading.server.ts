@@ -330,6 +330,37 @@ interface ProviderCall {
   tokensOut: number;
 }
 
+class ProviderHttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ProviderHttpError";
+    this.status = status;
+  }
+}
+
+const COMPACT_SYSTEM_PROMPT = `Você é um analista esportivo brasileiro do produto "Visão de Jogo". Responda em português do Brasil, claro e responsável. Não dê ordem para apostar ou não apostar. Não prometa resultado, ganho ou acerto. Use sempre "mandante", "empate" e "visitante"; nunca use home, draw ou away.
+
+Use apenas os dados objetivos recebidos. Não invente estatísticas, histórico, escalações, clima ou fontes externas.
+
+Termos proibidos: aposte, aposte agora, não aposte, palpite, palpite certeiro, lucro, renda, garantido, certeza, infalível, robô vencedor, green certo.
+
+Responda somente JSON válido, sem markdown, com estes campos:
+{"status":"aguardar_dados","frase_chave":"até 12 palavras","resumo_direto":"até 22 palavras","resumo":"até 45 palavras","qualidade_dados":"até 30 palavras","leitura_odds":"até 35 palavras","comparacao_referencia":"até 35 palavras","riscos":["item curto 1","item curto 2"],"pontos_atencao":["item curto 1","item curto 2"],"perfis":{"conservador":"1 frase","equilibrado":"1 frase","agressivo":"1 frase","oportunista":"1 frase","iniciante":"1 frase"},"conclusao":"até 25 palavras","aguardar_dados_motivo":null}`;
+
+function envMaxTokens(defaultValue: number): number {
+  const n = Number(process.env.ASSISTED_AI_MAX_TOKENS ?? defaultValue);
+  if (!Number.isFinite(n)) return defaultValue;
+  return Math.min(Math.max(Math.round(n), 700), 2500);
+}
+
+function isRetryableProviderError(err: unknown): boolean {
+  if (err instanceof ProviderHttpError) return err.status === 429 || err.status >= 500;
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /resposta vazia|resposta incompleta|finish_reason=length|unexpected end/i.test(msg);
+}
+
 export async function callProvider(input: AssistedReadingInput): Promise<ProviderCall> {
   const st = getProviderStatus();
   if (!st.configured) {
@@ -338,14 +369,24 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
     throw e;
   }
   if (st.provider === "external") {
-    return callOpenAICompatible({
+    const externalOpts = {
       url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
       headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
       model: st.model!,
       input,
       // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
       requestJson: false,
-    });
+    };
+    try {
+      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(1600) });
+    } catch (err) {
+      if (!isRetryableProviderError(err)) throw err;
+      console.warn(
+        "[assisted-reading] provider retrying compact mode:",
+        err instanceof Error ? err.message.slice(0, 180) : "unknown",
+      );
+      return callOpenAICompatible({ ...externalOpts, maxTokens: 1200, compact: true });
+    }
   }
   if (st.provider === "lovable")
     return callOpenAICompatible({
@@ -354,6 +395,7 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       model: st.model!,
       input,
       requestJson: true,
+      maxTokens: envMaxTokens(2200),
     });
   if (st.provider === "openai")
     return callOpenAICompatible({
@@ -362,6 +404,7 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       model: st.model!,
       input,
       requestJson: true,
+      maxTokens: envMaxTokens(2200),
     });
   return callAnthropic({ model: st.model!, input });
 }
@@ -372,15 +415,17 @@ async function callOpenAICompatible(opts: {
   model: string;
   input: AssistedReadingInput;
   requestJson: boolean;
+  maxTokens: number;
+  compact?: boolean;
 }): Promise<ProviderCall> {
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: opts.compact ? COMPACT_SYSTEM_PROMPT : SYSTEM_PROMPT },
       { role: "user", content: userPrompt(opts.input) },
     ],
     temperature: 0.3,
-    max_tokens: 2200,
+    max_tokens: opts.maxTokens,
   };
   if (opts.requestJson) body.response_format = { type: "json_object" };
   const resp = await fetch(opts.url, {
@@ -390,14 +435,19 @@ async function callOpenAICompatible(opts: {
   });
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
-    throw new Error(`Provedor ${resp.status}: ${txt.slice(0, 200)}`);
+    throw new ProviderHttpError(resp.status, `Provedor ${resp.status}: ${txt.slice(0, 200)}`);
   }
   const j = (await resp.json()) as {
-    choices: Array<{ message: { content: string } }>;
+    choices: Array<{ message: { content: string }; finish_reason?: string }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
+  const finishReason = j.choices?.[0]?.finish_reason;
   const raw = j.choices?.[0]?.message?.content ?? "{}";
+  if (!raw.trim()) throw new Error("Resposta vazia do provedor");
   const payload = normalizePayload(safeJson(raw));
+  if (!payload.resumo && finishReason === "length") {
+    throw new Error("Resposta incompleta do provedor (finish_reason=length)");
+  }
   return {
     payload,
     tokensIn: j.usage?.prompt_tokens ?? 0,
