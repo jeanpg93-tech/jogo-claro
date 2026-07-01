@@ -263,6 +263,22 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         </div>
       )}
 
+      {/* Aviso: análise anterior existe, mas os dados do jogo mudaram */}
+      {isStale && hasReading && uiStatus !== "loading" && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-100">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+          <div>
+            <div className="font-semibold">Análise anterior disponível, mas desatualizada</div>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-yellow-100/90">
+              Os dados do jogo (odds ou referência) mudaram desde a última
+              geração. A leitura antiga continua visível abaixo — clique em
+              <b> Atualizar análise</b> para obter uma nova leitura com os
+              números atuais.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Ações */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
@@ -278,15 +294,16 @@ export function AssistedReadingSection({ game }: { game: Game }) {
           )}
           {hasReading ? "Atualizar análise" : "Gerar análise"}
         </button>
-        {hasReading && (
+        {/* Regeneração forçada — restrita a admin, evita consumo de cota */}
+        {hasReading && effectiveIsAdmin && (
           <button
             type="button"
             onClick={() => mutation.mutate({ force: true })}
             disabled={!canGenerate}
             className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-1.5 text-xs text-muted-foreground transition hover:text-foreground disabled:opacity-40"
-            title="Força uma nova geração (respeita a cota diária)"
+            title="Admin: força nova geração ignorando cache (respeita cota diária)"
           >
-            <RefreshCcw className="h-3.5 w-3.5" /> Regenerar
+            <RefreshCcw className="h-3.5 w-3.5" /> Regenerar (admin)
           </button>
         )}
         {reading && (
@@ -295,6 +312,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
           </span>
         )}
       </div>
+
 
       {/* Skeleton de carregamento */}
       {uiStatus === "loading" && <LoadingSkeleton />}
