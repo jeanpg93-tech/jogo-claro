@@ -1,10 +1,15 @@
 // Fase 6 — Endpoint da Análise Assistida (uma por jogo, cacheada, server-side).
 //
-// GET  /api/assisted-reading?gameId=xxx  → devolve a última análise salva (se houver) + status do provedor.
-// POST /api/assisted-reading             → gera nova análise se cache expirou ou input mudou; senão devolve cache.
-// POST /api/assisted-reading?force=1     → força regeneração (respeita quota).
+// GET  /api/assisted-reading?gameId=xxx
+//   → devolve a última análise salva (se houver) + status do provedor +
+//     flag "stale" se as odds mudaram desde a última geração.
+// POST /api/assisted-reading            body: { gameId }
+//   → gera nova análise se cache expirou/input mudou; senão devolve cache.
+// POST /api/assisted-reading?force=1    body: { gameId }
+//   → força regeneração. RESTRITO A ADMIN. Usuário comum recebe 403.
 //
-// Auth: Bearer <access_token> (qualquer usuário autenticado).
+// O frontend NÃO envia o pacote de dados da análise. O servidor lê games/odds/reference
+// no Supabase e monta o input objetivo internamente.
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/assisted-reading")({
@@ -19,6 +24,8 @@ export const Route = createFileRoute("/api/assisted-reading")({
           getProviderStatus,
           getProviderHealth,
           readLatestReading,
+          buildAssistedReadingInputFromDb,
+          hashInput,
         } = await import("@/lib/assisted-reading.server");
         const userId = await verifyUserFromToken(token);
         if (!userId) return new Response("Unauthorized", { status: 401 });
@@ -26,9 +33,14 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const gameId = url.searchParams.get("gameId");
         const provider = getProviderStatus();
         const health = getProviderHealth();
-        if (!gameId) return Response.json({ provider, health, reading: null });
+        if (!gameId) return Response.json({ provider, health, reading: null, stale: false });
         const reading = await readLatestReading(gameId);
-        return Response.json({ provider, health, reading });
+        let stale = false;
+        if (reading) {
+          const input = await buildAssistedReadingInputFromDb(gameId);
+          if (input) stale = hashInput(input) !== reading.inputHash;
+        }
+        return Response.json({ provider, health, reading, stale });
       },
       POST: async ({ request }) => {
         const auth = request.headers.get("authorization") ?? "";
@@ -37,6 +49,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
 
         const {
           verifyUserFromToken,
+          verifyAdminFromToken,
           getProviderStatus,
           getProviderHealth,
           hashInput,
@@ -48,30 +61,53 @@ export const Route = createFileRoute("/api/assisted-reading")({
           checkAndIncrementQuota,
           recordProviderSuccess,
           recordProviderFailure,
+          buildAssistedReadingInputFromDb,
         } = await import("@/lib/assisted-reading.server");
 
         const userId = await verifyUserFromToken(token);
         if (!userId) return new Response("Unauthorized", { status: 401 });
 
         const url = new URL(request.url);
-        const force = url.searchParams.get("force") === "1";
+        const wantsForce = url.searchParams.get("force") === "1";
 
-        const body = (await request.json().catch(() => ({}))) as {
-          gameId?: string;
-          input?: unknown;
-        };
-        const gameId = String(body.gameId ?? "").trim();
-        if (!gameId || !body.input || typeof body.input !== "object") {
-          return Response.json({ status: "error", message: "payload inválido" }, { status: 400 });
+        // Força só é permitida para admin — evita abuso de cota por usuário comum.
+        let force = false;
+        if (wantsForce) {
+          const isAdmin = await verifyAdminFromToken(token);
+          if (!isAdmin) {
+            return Response.json(
+              {
+                status: "error",
+                message:
+                  "Regeneração forçada é reservada para administradores. A análise em cache continua válida.",
+              },
+              { status: 403 },
+            );
+          }
+          force = true;
         }
-        const input = body.input as import("@/lib/assisted-reading").AssistedReadingInput;
+
+        const body = (await request.json().catch(() => ({}))) as { gameId?: string };
+        const gameId = String(body.gameId ?? "").trim();
+        if (!gameId) {
+          return Response.json({ status: "error", message: "gameId ausente." }, { status: 400 });
+        }
+
+        // Servidor monta o input a partir do Supabase — nunca aceita o pacote do cliente.
+        const input = await buildAssistedReadingInputFromDb(gameId);
+        if (!input) {
+          return Response.json(
+            { status: "error", message: "Jogo não encontrado no banco." },
+            { status: 404 },
+          );
+        }
         const inputHash = hashInput(input);
 
         // 1) Cache válido para este hash?
         if (!force) {
           const cached = await readCachedReading(gameId, inputHash);
           if (cached && cached.fresh) {
-            return Response.json({ status: "ready", reading: cached, fromCache: true });
+            return Response.json({ status: "ready", reading: cached, fromCache: true, stale: false });
           }
         }
 
@@ -84,6 +120,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
             provider: st.provider,
             message: st.reason,
             reading: last,
+            stale: last ? last.inputHash !== inputHash : false,
           });
         }
 
@@ -96,6 +133,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
               status: "quota_exceeded",
               message: `Limite diário atingido (${quota.used}/${quota.limit}).`,
               reading: last,
+              stale: last ? last.inputHash !== inputHash : false,
             },
             { status: 429 },
           );
@@ -120,6 +158,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
             detail: process.env.NODE_ENV === "development" ? msg : undefined,
             health: getProviderHealth(),
             reading: last,
+            stale: last ? last.inputHash !== inputHash : false,
           });
         }
 
@@ -131,6 +170,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
             message: "A IA não retornou uma análise completa. Tente gerar novamente.",
             health: getProviderHealth(),
             reading: last,
+            stale: last ? last.inputHash !== inputHash : false,
           });
         }
         const forbidden = containsForbidden(out.payload);
@@ -156,7 +196,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
           tokensOut: out.tokensOut,
         });
 
-        return Response.json({ status: "ready", reading: saved, fromCache: false });
+        return Response.json({ status: "ready", reading: saved, fromCache: false, stale: false });
       },
     },
   },

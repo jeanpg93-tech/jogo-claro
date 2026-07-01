@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import type { Game } from "@/lib/demo-games";
 import {
-  buildAssistedReadingInput,
   type AssistedReadingPayload,
   type AssistedReadingUiStatus,
   type AssistedStatus,
@@ -33,6 +32,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeGame } from "@/lib/game-analysis";
 import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
+import { useRole } from "@/hooks/use-role";
 
 interface CachedReading {
   id: string;
@@ -61,6 +61,7 @@ interface ApiResponse {
   provider?: string;
   message?: string;
   health?: HealthInfo;
+  stale?: boolean;
 }
 
 const STATUS_LABEL: Record<AssistedStatus, { label: string; tone: string; icon: typeof Bot }> = {
@@ -83,10 +84,10 @@ const STATUS_LABEL: Record<AssistedStatus, { label: string; tone: string; icon: 
 };
 
 export function AssistedReadingSection({ game }: { game: Game }) {
-  const input = buildAssistedReadingInput(game);
   const analysis = analyzeGame(game);
   const dataOk = analysis.coverage.hasReference && analysis.coverage.totalBooks >= 2;
   const { profile } = useAnalyticalProfile();
+  const { effectiveIsAdmin } = useRole();
 
   const userPerfil = useMemo<PerfilKey>(() => {
     if (profile.experience_level === "iniciante") return "iniciante";
@@ -101,8 +102,9 @@ export function AssistedReadingSection({ game }: { game: Game }) {
     dataOk ? "empty" : "insufficient_data",
   );
   const [providerMsg, setProviderMsg] = useState<string | null>(null);
-  const [providerName, setProviderName] = useState<string>("");
+  const [, setProviderName] = useState<string>("");
   const [health, setHealth] = useState<HealthInfo | null>(null);
+  const [isStale, setIsStale] = useState(false);
 
   // Carrega leitura já salva no banco (uma por jogo, compartilhada).
   useEffect(() => {
@@ -119,18 +121,21 @@ export function AssistedReadingSection({ game }: { game: Game }) {
           provider?: { provider: string; configured: boolean; reason?: string };
           reading?: CachedReading | null;
           health?: HealthInfo;
+          stale?: boolean;
         };
         if (cancel) return;
         if (json.provider) {
           setProviderName(json.provider.provider || "");
           if (!json.provider.configured) {
             setProviderMsg(json.provider.reason ?? "Provedor de IA não configurado.");
+            setUiStatus("not_configured");
           }
         }
         if (json.health) setHealth(json.health);
+        setIsStale(Boolean(json.stale));
         if (json.reading) {
           setReading(json.reading);
-          setUiStatus("ready");
+          if (uiStatus !== "not_configured") setUiStatus(json.stale ? "stale" : "ready");
         }
       } catch {
         /* silencioso: shell continua acessível */
@@ -152,13 +157,15 @@ export function AssistedReadingSection({ game }: { game: Game }) {
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ gameId: game.id, input }),
+        body: JSON.stringify({ gameId: game.id }),
       });
       return (await resp.json().catch(() => ({}))) as ApiResponse;
     },
     onMutate: () => setUiStatus("loading"),
     onSuccess: (json) => {
       if (json.health) setHealth(json.health);
+      const staleFlag = Boolean((json as ApiResponse & { stale?: boolean }).stale);
+      setIsStale(staleFlag);
       if ((json.status === "ready") && json.reading) {
         setReading(json.reading);
         setUiStatus("ready");
@@ -256,6 +263,22 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         </div>
       )}
 
+      {/* Aviso: análise anterior existe, mas os dados do jogo mudaram */}
+      {isStale && hasReading && uiStatus !== "loading" && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-100">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+          <div>
+            <div className="font-semibold">Análise anterior disponível, mas desatualizada</div>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-yellow-100/90">
+              Os dados do jogo (odds ou referência) mudaram desde a última
+              geração. A leitura antiga continua visível abaixo — clique em
+              <b> Atualizar análise</b> para obter uma nova leitura com os
+              números atuais.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Ações */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
@@ -271,15 +294,16 @@ export function AssistedReadingSection({ game }: { game: Game }) {
           )}
           {hasReading ? "Atualizar análise" : "Gerar análise"}
         </button>
-        {hasReading && (
+        {/* Regeneração forçada — restrita a admin, evita consumo de cota */}
+        {hasReading && effectiveIsAdmin && (
           <button
             type="button"
             onClick={() => mutation.mutate({ force: true })}
             disabled={!canGenerate}
             className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-1.5 text-xs text-muted-foreground transition hover:text-foreground disabled:opacity-40"
-            title="Força uma nova geração (respeita a cota diária)"
+            title="Admin: força nova geração ignorando cache (respeita cota diária)"
           >
-            <RefreshCcw className="h-3.5 w-3.5" /> Regenerar
+            <RefreshCcw className="h-3.5 w-3.5" /> Regenerar (admin)
           </button>
         )}
         {reading && (
@@ -289,11 +313,12 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         )}
       </div>
 
+
       {/* Skeleton de carregamento */}
       {uiStatus === "loading" && <LoadingSkeleton />}
 
-      {/* Estado inline / erros */}
-      {uiStatus !== "ready" && uiStatus !== "loading" && (
+      {/* Estado inline / erros — não mostra o InlineState do "stale" porque o banner acima já cobre */}
+      {uiStatus !== "ready" && uiStatus !== "loading" && uiStatus !== "stale" && (
         <InlineState status={uiStatus} message={providerMsg} dataOk={dataOk} />
       )}
 

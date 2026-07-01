@@ -259,7 +259,11 @@ function GameDetail({ game }: { game: Game }) {
                 </table>
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-300">BR</span>{" "}
-                  = casas que operam no Brasil. Betano, Bet365, KTO, Pixbet e outras casas exclusivamente brasileiras não são cobertas pela fonte de dados. Não exibimos links para casas de apostas.
+                  = casas conhecidas ou relevantes para o mercado brasileiro,
+                  conforme a cobertura disponível no provedor de odds atual. A
+                  cobertura pode variar por competição, jogo, plano da API e
+                  disponibilidade da casa. Não exibimos links para casas de
+                  apostas.
                 </p>
               </div>
             )}

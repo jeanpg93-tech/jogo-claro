@@ -2,11 +2,13 @@
 // Executa apenas no servidor. Nunca importe este arquivo do cliente.
 //
 // Regras firmes:
-// - Não usa IA nativa do Lovable no produto final. O provedor é externo,
-//   configurado por ASSISTED_AI_PROVIDER=external + AI_GATEWAY_BASE_URL +
-//   AI_GATEWAY_MODEL + AI_GATEWAY_API_KEY (server-side).
+// - Provedor de IA TRAVADO no Gateway externo do Visão de Jogo.
+//   Configurado por AI_GATEWAY_BASE_URL + AI_GATEWAY_API_KEY + AI_GATEWAY_MODEL.
+//   NÃO usa Lovable AI, IA nativa do Lovable, OpenAI direto nem Anthropic direto.
+// - Frontend nunca envia o pacote de dados. O servidor lê games/odds/reference
+//   do Supabase e monta o input objetivo para a IA.
 // - Cache por jogo com TTL de 30 min. Se o input_hash mudar (odds mudaram)
-//   uma nova geração é permitida.
+//   a análise fica "desatualizada" e pode ser regerada.
 // - Cotas diárias por instalação (ASSISTED_AI_DAILY_LIMIT).
 // - Sanitiza a saída contra termos proibidos antes de persistir.
 import { createClient } from "@supabase/supabase-js";
@@ -36,7 +38,7 @@ const FORBIDDEN = [
   "green certo",
 ];
 
-export type ProviderId = "" | "external" | "lovable" | "openai" | "anthropic";
+export type ProviderId = "" | "external";
 
 export interface ProviderStatus {
   provider: ProviderId;
@@ -45,57 +47,15 @@ export interface ProviderStatus {
   reason?: string;
 }
 
+// Provedor TRAVADO no Gateway externo. Sem fallback para Lovable/OpenAI/Anthropic.
 export function getProviderStatus(): ProviderStatus {
-  const raw = (process.env.ASSISTED_AI_PROVIDER ?? "").trim().toLowerCase();
-  let provider = (["external", "lovable", "openai", "anthropic"].includes(raw)
-    ? raw
-    : "") as ProviderId;
-  // Auto-detect: se as envs do gateway externo estão presentes, assume "external".
-  if (!provider && process.env.AI_GATEWAY_BASE_URL && process.env.AI_GATEWAY_API_KEY) {
-    provider = "external";
-  }
-  if (!provider) {
-    return { provider: "", configured: false, model: null, reason: "ASSISTED_AI_PROVIDER não definido" };
-  }
-  if (provider === "external") {
-    const url = process.env.AI_GATEWAY_BASE_URL;
-    const key = process.env.AI_GATEWAY_API_KEY;
-    const model = process.env.AI_GATEWAY_MODEL ?? "claude-sonnet-4-6";
-    if (!url || !key) {
-      return {
-        provider,
-        configured: false,
-        model,
-        reason: !url ? "AI_GATEWAY_BASE_URL ausente" : "AI_GATEWAY_API_KEY ausente",
-      };
-    }
-    return { provider, configured: true, model };
-  }
-  if (provider === "lovable") {
-    const ok = Boolean(process.env.LOVABLE_API_KEY);
-    return {
-      provider,
-      configured: ok,
-      model: process.env.ASSISTED_AI_MODEL ?? "google/gemini-3-flash-preview",
-      reason: ok ? undefined : "LOVABLE_API_KEY ausente",
-    };
-  }
-  if (provider === "openai") {
-    const ok = Boolean(process.env.OPENAI_API_KEY);
-    return {
-      provider,
-      configured: ok,
-      model: process.env.ASSISTED_AI_MODEL ?? "gpt-4o-mini",
-      reason: ok ? undefined : "OPENAI_API_KEY ausente",
-    };
-  }
-  const ok = Boolean(process.env.ANTHROPIC_API_KEY);
-  return {
-    provider,
-    configured: ok,
-    model: process.env.ASSISTED_AI_MODEL ?? "claude-3-5-haiku-latest",
-    reason: ok ? undefined : "ANTHROPIC_API_KEY ausente",
-  };
+  const url = process.env.AI_GATEWAY_BASE_URL;
+  const key = process.env.AI_GATEWAY_API_KEY;
+  const model = process.env.AI_GATEWAY_MODEL;
+  if (!url) return { provider: "external", configured: false, model: null, reason: "AI_GATEWAY_BASE_URL ausente" };
+  if (!key) return { provider: "external", configured: false, model: null, reason: "AI_GATEWAY_API_KEY ausente" };
+  if (!model) return { provider: "external", configured: false, model: null, reason: "AI_GATEWAY_MODEL ausente" };
+  return { provider: "external", configured: true, model };
 }
 
 // ----- Saúde do provedor (auto banner de manutenção) -----
@@ -548,48 +508,25 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
     throw e;
   }
   const systemPrompt = await getActiveSystemPrompt();
-  if (st.provider === "external") {
-    const externalOpts = {
-      url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
-      headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
-      model: st.model!,
-      input,
-      systemPrompt,
-      // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
-      requestJson: false,
-    };
-    try {
-      return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(2000) });
-    } catch (err) {
-      if (!isRetryableProviderError(err)) throw err;
-      console.warn(
-        "[assisted-reading] provider retrying compact mode:",
-        err instanceof Error ? err.message.slice(0, 180) : "unknown",
-      );
-      return callOpenAICompatible({ ...externalOpts, maxTokens: 1200, compact: true });
-    }
+  const externalOpts = {
+    url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
+    headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
+    model: st.model!,
+    input,
+    systemPrompt,
+    // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
+    requestJson: false,
+  };
+  try {
+    return await callOpenAICompatible({ ...externalOpts, maxTokens: envMaxTokens(2000) });
+  } catch (err) {
+    if (!isRetryableProviderError(err)) throw err;
+    console.warn(
+      "[assisted-reading] provider retrying compact mode:",
+      err instanceof Error ? err.message.slice(0, 180) : "unknown",
+    );
+    return callOpenAICompatible({ ...externalOpts, maxTokens: 1200, compact: true });
   }
-  if (st.provider === "lovable")
-    return callOpenAICompatible({
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      headers: { "Lovable-API-Key": process.env.LOVABLE_API_KEY! },
-      model: st.model!,
-      input,
-      systemPrompt,
-      requestJson: true,
-      maxTokens: envMaxTokens(2200),
-    });
-  if (st.provider === "openai")
-    return callOpenAICompatible({
-      url: "https://api.openai.com/v1/chat/completions",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY!}` },
-      model: st.model!,
-      input,
-      systemPrompt,
-      requestJson: true,
-      maxTokens: envMaxTokens(2200),
-    });
-  return callAnthropic({ model: st.model!, input, systemPrompt });
 }
 
 async function callOpenAICompatible(opts: {
@@ -644,39 +581,106 @@ async function callOpenAICompatible(opts: {
   };
 }
 
-async function callAnthropic(opts: {
-  model: string;
-  input: AssistedReadingInput;
-  systemPrompt?: string;
-}): Promise<ProviderCall> {
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: opts.model,
-      max_tokens: 2200,
-      system: opts.systemPrompt ?? SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt(opts.input) }],
-    }),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error(`Anthropic ${resp.status}: ${txt.slice(0, 200)}`);
+// (callAnthropic removido — provedor travado no Gateway externo)
+
+// ------------------------------------------------------------------
+// Montagem SERVER-SIDE do input da IA a partir do Supabase.
+// O frontend só envia gameId. Aqui recomputamos coverage/consensus
+// idêntico ao que analyzeGame() faz no cliente, para que o pacote
+// enviado à IA seja auditável e não manipulável pelo navegador.
+// ------------------------------------------------------------------
+
+function impliedProb(odd: number): number {
+  return odd > 0 ? 1 / odd : 0;
+}
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+}
+
+export async function buildAssistedReadingInputFromDb(
+  externalId: string,
+): Promise<AssistedReadingInput | null> {
+  const admin = getAdmin();
+  const { data: game } = await admin
+    .from("games")
+    .select("id, external_id, competition, round, home, away, kickoff, updated_at")
+    .eq("external_id", externalId)
+    .maybeSingle();
+  if (!game) return null;
+  const [{ data: oddsRows }, { data: refRow }] = await Promise.all([
+    admin.from("game_odds").select("side, book, odd").eq("game_id", game.id),
+    admin
+      .from("game_reference")
+      .select("home, draw, away")
+      .eq("game_id", game.id)
+      .maybeSingle(),
+  ]);
+
+  type Row = { side: "home" | "draw" | "away"; book: string; odd: number };
+  const byBook = new Map<string, { book: string; home: number; draw: number; away: number }>();
+  for (const o of (oddsRows ?? []) as Row[]) {
+    const entry = byBook.get(o.book) ?? { book: o.book, home: 0, draw: 0, away: 0 };
+    entry[o.side] = Number(o.odd);
+    byBook.set(o.book, entry);
   }
-  const j = (await resp.json()) as {
-    content: Array<{ type: string; text: string }>;
-    usage?: { input_tokens?: number; output_tokens?: number };
-  };
-  const raw = j.content?.find((c) => c.type === "text")?.text ?? "{}";
-  const payload = normalizePayload(safeJson(raw));
+  const books = Array.from(byBook.values()).filter((b) => b.home && b.draw && b.away);
+  const reference = refRow
+    ? { home: Number(refRow.home), draw: Number(refRow.draw), away: Number(refRow.away) }
+    : null;
+
+  const BR_HINT =
+    /(betano|bet365|kto|pixbet|sportingbet|betnacional|superbet|estrelabet|betfair|blaze|galera|betsul|bet7k|betmgm\.br)/i;
+  const brBooks = books.filter((b) => BR_HINT.test(b.book)).length;
+
+  const ageMs = game.updated_at ? Date.now() - new Date(game.updated_at).getTime() : Infinity;
+  const ageHours = isFinite(ageMs) ? ageMs / 3_600_000 : Infinity;
+
+  const sides: AssistedReadingInput["consensus"] = (
+    ["home", "draw", "away"] as const
+  ).map((side) => {
+    const odds = books.map((b) => b[side]).filter((o) => o > 0);
+    const bestO = odds.length ? Math.max(...odds) : 0;
+    const worstO = odds.length ? Math.min(...odds) : 0;
+    const impliedPcts = odds.map((o) => impliedProb(o) * 100);
+    const mean = impliedPcts.length
+      ? impliedPcts.reduce((a, b) => a + b, 0) / impliedPcts.length
+      : 0;
+    const refPct = reference ? impliedProb(reference[side]) * 100 : null;
+    const edge = refPct !== null && bestO > 0 ? refPct - impliedProb(bestO) * 100 : null;
+    const spread =
+      odds.length >= 2 ? impliedProb(worstO) * 100 - impliedProb(bestO) * 100 : 0;
+    return {
+      side,
+      bestOdd: bestO,
+      worstOdd: worstO,
+      medianOdd: median(odds),
+      meanImpliedPct: mean,
+      refImpliedPct: refPct,
+      edgePp: edge,
+      spreadPp: spread,
+    };
+  });
+
   return {
-    payload,
-    tokensIn: j.usage?.input_tokens ?? 0,
-    tokensOut: j.usage?.output_tokens ?? 0,
+    gameId: game.external_id,
+    competition: game.competition,
+    round: game.round ?? "—",
+    home: game.home,
+    away: game.away,
+    kickoffISO: game.kickoff,
+    updatedAtISO: game.updated_at,
+    demo: false,
+    coverage: {
+      totalBooks: books.length,
+      brBooks,
+      hasReference: Boolean(reference),
+      ageHours,
+      fresh: ageHours <= 24,
+    },
+    consensus: sides,
   };
 }
 
