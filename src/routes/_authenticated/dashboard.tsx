@@ -189,52 +189,11 @@ function DashboardPage() {
             Nenhum jogo corresponde ao filtro selecionado.
           </div>
         )}
-        {items.map(({ g, c }) => (
-          <Link
-            key={g.id}
-            to="/jogos/$id"
-            params={{ id: g.id }}
-            className="group rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-primary/40 hover:bg-card/80"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
-                  {g.competition} · {g.round}
-                </div>
-                <div className="mt-1 text-lg font-semibold tracking-tight">
-                  {g.home}{" "}
-                  <span className="text-muted-foreground">vs</span> {g.away}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarClock className="h-3.5 w-3.5" />
-                  {new Date(g.kickoff).toLocaleString("pt-BR", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
-                  <span
-                    className={`ml-2 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${g.demo ? "bg-muted" : "bg-emerald-500/15 text-emerald-300"}`}
-                  >
-                    {g.demo ? "Demo" : "Real"}
-                  </span>
-                  <KickoffCountdown kickoff={g.kickoff} books={g.books.length} />
-                </div>
-              </div>
-              <div className="text-right">
-                <span
-                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_META[c.status].tone}`}
-                >
-                  {STATUS_META[c.status].label}
-                </span>
-                {c.best && c.status === "oportunidade_analitica" && (
-                  <div className="mt-1 text-xs text-emerald-300">
-                    {sideLabel(c.best.side)} · melhor odd {c.best.odd.toFixed(2)} ·{" "}
-                    +{c.best.edgePct.toFixed(1)}pp vs referência
-                  </div>
-                )}
-              </div>
-            </div>
+        {items.map(({ g }) => (
+          <div key={g.id}>
+            <GameRow game={g} />
             {effectiveIsAdmin && (
-              <div className="mt-3 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
+              <div className="mt-1 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
                 <strong className="text-foreground">Visão Admin:</strong> {g.books.length}{" "}
                 fonte(s), atualizado{" "}
                 {g.updatedAt
@@ -243,13 +202,9 @@ function DashboardPage() {
                 .
               </div>
             )}
-          </Link>
+          </div>
         ))}
       </div>
     </div>
   );
-}
-
-function sideLabel(s: "home" | "draw" | "away") {
-  return s === "home" ? "Mandante" : s === "draw" ? "Empate" : "Visitante";
 }
