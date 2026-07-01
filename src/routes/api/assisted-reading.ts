@@ -1,9 +1,10 @@
-// Fase 5 — Endpoint da Leitura Assistida.
-// Auth: Bearer <access_token> (qualquer usuário autenticado).
+// Fase 6 — Endpoint da Análise Assistida (uma por jogo, cacheada, server-side).
 //
-// POST /api/assisted-reading
-// body: { gameId: string, input: AssistedReadingInput }
-// resp: { status: "ready"|"not_configured"|"blocked"|"error", reading?, provider?, model?, message? }
+// GET  /api/assisted-reading?gameId=xxx  → devolve a última análise salva (se houver) + status do provedor.
+// POST /api/assisted-reading             → gera nova análise se cache expirou ou input mudou; senão devolve cache.
+// POST /api/assisted-reading?force=1     → força regeneração (respeita quota).
+//
+// Auth: Bearer <access_token> (qualquer usuário autenticado).
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/assisted-reading")({
@@ -13,12 +14,19 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const auth = request.headers.get("authorization") ?? "";
         const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
         if (!token) return new Response("Unauthorized", { status: 401 });
-        const { verifyUserFromToken, getProviderStatus } = await import(
-          "@/lib/assisted-reading.server"
-        );
+        const {
+          verifyUserFromToken,
+          getProviderStatus,
+          readLatestReading,
+        } = await import("@/lib/assisted-reading.server");
         const userId = await verifyUserFromToken(token);
         if (!userId) return new Response("Unauthorized", { status: 401 });
-        return Response.json(getProviderStatus());
+        const url = new URL(request.url);
+        const gameId = url.searchParams.get("gameId");
+        const provider = getProviderStatus();
+        if (!gameId) return Response.json({ provider, reading: null });
+        const reading = await readLatestReading(gameId);
+        return Response.json({ provider, reading });
       },
       POST: async ({ request }) => {
         const auth = request.headers.get("authorization") ?? "";
@@ -30,13 +38,18 @@ export const Route = createFileRoute("/api/assisted-reading")({
           getProviderStatus,
           hashInput,
           readCachedReading,
+          readLatestReading,
           callProvider,
           saveReading,
           containsForbidden,
+          checkAndIncrementQuota,
         } = await import("@/lib/assisted-reading.server");
 
         const userId = await verifyUserFromToken(token);
         if (!userId) return new Response("Unauthorized", { status: 401 });
+
+        const url = new URL(request.url);
+        const force = url.searchParams.get("force") === "1";
 
         const body = (await request.json().catch(() => ({}))) as {
           gameId?: string;
@@ -49,27 +62,41 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const input = body.input as import("@/lib/assisted-reading").AssistedReadingInput;
         const inputHash = hashInput(input);
 
-        // 1) Cache 30 min por (gameId, inputHash)
-        const cached = await readCachedReading(gameId, inputHash);
-        if (cached && cached.fresh) {
-          return Response.json({
-            status: "ready",
-            reading: cached,
-            fromCache: true,
-          });
+        // 1) Cache válido para este hash?
+        if (!force) {
+          const cached = await readCachedReading(gameId, inputHash);
+          if (cached && cached.fresh) {
+            return Response.json({ status: "ready", reading: cached, fromCache: true });
+          }
         }
 
         // 2) Provedor configurado?
         const st = getProviderStatus();
         if (!st.configured) {
+          const last = await readLatestReading(gameId);
           return Response.json({
             status: "not_configured",
             provider: st.provider,
             message: st.reason,
+            reading: last,
           });
         }
 
-        // 3) Chama provedor externo
+        // 3) Quota diária
+        const quota = await checkAndIncrementQuota();
+        if (!quota.ok) {
+          const last = await readLatestReading(gameId);
+          return Response.json(
+            {
+              status: "quota_exceeded",
+              message: `Limite diário atingido (${quota.used}/${quota.limit}).`,
+              reading: last,
+            },
+            { status: 429 },
+          );
+        }
+
+        // 4) Chama provedor externo
         let out;
         try {
           out = await callProvider(input);
@@ -83,10 +110,10 @@ export const Route = createFileRoute("/api/assisted-reading")({
           );
         }
 
-        if (!out.summary) {
+        if (!out.payload.resumo) {
           return Response.json({ status: "error", message: "resposta vazia" }, { status: 502 });
         }
-        const forbidden = containsForbidden(out.summary + " " + out.cautions.join(" "));
+        const forbidden = containsForbidden(out.payload);
         if (forbidden) {
           return Response.json(
             {
@@ -97,14 +124,14 @@ export const Route = createFileRoute("/api/assisted-reading")({
           );
         }
 
-        // 4) Persiste
+        // 5) Persiste
         const saved = await saveReading({
           gameId,
           provider: st.provider,
           model: st.model ?? "",
           inputHash,
-          summary: out.summary,
-          cautions: out.cautions,
+          status: out.payload.status,
+          payload: out.payload,
           tokensIn: out.tokensIn,
           tokensOut: out.tokensOut,
         });
