@@ -18,6 +18,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthEntrarRouteImport } from './routes/auth.entrar'
 import { Route as AuthCadastroRouteImport } from './routes/auth.cadastro'
+import { Route as ApiAssistedReadingRouteImport } from './routes/api/assisted-reading'
 import { Route as AuthenticatedPerfilAnaliticoRouteImport } from './routes/_authenticated/perfil-analitico'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedDiarioRouteImport } from './routes/_authenticated/diario'
@@ -73,6 +74,11 @@ const AuthCadastroRoute = AuthCadastroRouteImport.update({
   id: '/cadastro',
   path: '/cadastro',
   getParentRoute: () => AuthRoute,
+} as any)
+const ApiAssistedReadingRoute = ApiAssistedReadingRouteImport.update({
+  id: '/api/assisted-reading',
+  path: '/api/assisted-reading',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedPerfilAnaliticoRoute =
   AuthenticatedPerfilAnaliticoRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/diario': typeof AuthenticatedDiarioRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/perfil-analitico': typeof AuthenticatedPerfilAnaliticoRoute
+  '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/diario': typeof AuthenticatedDiarioRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/perfil-analitico': typeof AuthenticatedPerfilAnaliticoRoute
+  '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/_authenticated/diario': typeof AuthenticatedDiarioRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/perfil-analitico': typeof AuthenticatedPerfilAnaliticoRoute
+  '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
   '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/diario'
     | '/perfil'
     | '/perfil-analitico'
+    | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/admin/sincronizacao'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/diario'
     | '/perfil'
     | '/perfil-analitico'
+    | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/admin/sincronizacao'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/_authenticated/diario'
     | '/_authenticated/perfil'
     | '/_authenticated/perfil-analitico'
+    | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
     | '/_authenticated/admin/sincronizacao'
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   MetodologiaRoute: typeof MetodologiaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
+  ApiAssistedReadingRoute: typeof ApiAssistedReadingRoute
   ApiAdminCadenceRoute: typeof ApiAdminCadenceRoute
   ApiAdminOddspapiTournamentsRoute: typeof ApiAdminOddspapiTournamentsRoute
   ApiAdminSyncRoute: typeof ApiAdminSyncRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/cadastro'
       preLoaderRoute: typeof AuthCadastroRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/api/assisted-reading': {
+      id: '/api/assisted-reading'
+      path: '/api/assisted-reading'
+      fullPath: '/api/assisted-reading'
+      preLoaderRoute: typeof ApiAssistedReadingRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/perfil-analitico': {
       id: '/_authenticated/perfil-analitico'
@@ -466,6 +486,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetodologiaRoute: MetodologiaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
+  ApiAssistedReadingRoute: ApiAssistedReadingRoute,
   ApiAdminCadenceRoute: ApiAdminCadenceRoute,
   ApiAdminOddspapiTournamentsRoute: ApiAdminOddspapiTournamentsRoute,
   ApiAdminSyncRoute: ApiAdminSyncRoute,

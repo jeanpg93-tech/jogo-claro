@@ -14,15 +14,21 @@
 import type { Game } from "@/lib/demo-games";
 import { analyzeGame } from "@/lib/game-analysis";
 
-// Feature flag: ligada apenas quando a Fase 5 estiver implantada.
-export const ASSISTED_READING_ENABLED = false;
+// Fase 5 — cliente sempre pode CHAMAR o endpoint; o backend decide se está
+// configurado (env `ASSISTED_AI_PROVIDER` + chave) e responde
+// `status: "not_configured"` quando não estiver. Enquanto isso o shell é
+// exibido normalmente. Nunca chamamos IA nativa do Lovable no produto.
+export const ASSISTED_READING_ENABLED = true;
 
 export type AssistedReadingStatus =
-  | "disabled" // feature flag desligada
-  | "insufficient_data" // dados objetivos insuficientes para gerar contexto
-  | "empty" // ainda não gerada para este jogo
-  | "ready" // leitura gerada (Fase 5)
-  | "stale" // leitura ficou desatualizada frente aos dados atuais
+  | "disabled" // shell exibido, IA não configurada ainda
+  | "not_configured" // backend respondeu que não há provedor/chave
+  | "insufficient_data" // dados objetivos insuficientes
+  | "empty" // ainda não gerada para este jogo (aguarda clique)
+  | "loading" // chamada em andamento
+  | "ready" // leitura gerada (cache ou fresca)
+  | "stale" // dados mudaram desde a última geração
+  | "blocked" // saída rejeitada por termo proibido
   | "error"; // provedor externo falhou
 
 // Contrato que a IA externa receberá. Apenas números e rótulos objetivos
