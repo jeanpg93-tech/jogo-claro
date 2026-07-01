@@ -121,8 +121,21 @@ function DashboardPage() {
               <Button asChild size="sm" variant="outline">
                 <Link to="/admin/sincronizacao">Sincronização</Link>
               </Button>
-            )}
-          </div>
+        )}
+      </div>
+
+      {riskLabel && (
+        <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+          Destaques calibrados para o seu perfil:{" "}
+          <strong className="text-foreground">{riskLabel}</strong>. Você pode
+          ajustar em{" "}
+          <Link to="/perfil" className="text-primary hover:underline">
+            Perfil
+          </Link>
+          .
+        </div>
+      )}
+
         )}
       </div>
 
@@ -197,21 +210,27 @@ function DashboardPage() {
             Nenhum jogo corresponde ao filtro selecionado.
           </div>
         )}
-        {items.map(({ g }) => (
-          <div key={g.id}>
-            <GameRow game={g} />
-            {effectiveIsAdmin && (
-              <div className="mt-1 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
-                <strong className="text-foreground">Visão Admin:</strong> {g.books.length}{" "}
-                fonte(s), atualizado{" "}
-                {g.updatedAt
-                  ? new Date(g.updatedAt).toLocaleString("pt-BR")
-                  : "—"}
-                .
-              </div>
-            )}
-          </div>
-        ))}
+        {items.map(({ g, c }) => {
+          const lens = profileLens(c.status, profile, {
+            edgePct: c.best?.edgePct ?? null,
+          });
+          return (
+            <div key={g.id}>
+              <GameRow game={g} lens={lens} />
+              {effectiveIsAdmin && (
+                <div className="mt-1 rounded-md border border-dashed border-border/60 bg-background/30 p-2 text-[11px] text-muted-foreground">
+                  <strong className="text-foreground">Visão Admin:</strong>{" "}
+                  {g.books.length} fonte(s), atualizado{" "}
+                  {g.updatedAt
+                    ? new Date(g.updatedAt).toLocaleString("pt-BR")
+                    : "—"}
+                  .
+                </div>
+              )}
+            </div>
+          );
+        })}
+
       </div>
     </div>
   );
