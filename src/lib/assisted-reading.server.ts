@@ -477,12 +477,14 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
     (e as Error & { code?: string }).code = "provider_not_configured";
     throw e;
   }
+  const systemPrompt = await getActiveSystemPrompt();
   if (st.provider === "external") {
     const externalOpts = {
       url: `${process.env.AI_GATEWAY_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
       headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
       model: st.model!,
       input,
+      systemPrompt,
       // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
       requestJson: false,
     };
@@ -503,6 +505,7 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       headers: { "Lovable-API-Key": process.env.LOVABLE_API_KEY! },
       model: st.model!,
       input,
+      systemPrompt,
       requestJson: true,
       maxTokens: envMaxTokens(2200),
     });
@@ -512,10 +515,11 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY!}` },
       model: st.model!,
       input,
+      systemPrompt,
       requestJson: true,
       maxTokens: envMaxTokens(2200),
     });
-  return callAnthropic({ model: st.model!, input });
+  return callAnthropic({ model: st.model!, input, systemPrompt });
 }
 
 async function callOpenAICompatible(opts: {
