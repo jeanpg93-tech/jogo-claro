@@ -440,7 +440,12 @@ async function fetchFixtureDiscovery(
     if (!res.ok) {
       const body = await responseText(res);
       failures++;
-      lastFailure = `${res.status} ${body.slice(0, 180)}`;
+      const trimmed = body.trim();
+      const looksLikeCfBlock =
+        res.status === 403 && /^\{?"?error"?\s*:\s*"?Forbidden/i.test(trimmed);
+      lastFailure = looksLikeCfBlock
+        ? `403 bloqueado pela Cloudflare/WAF da OddsPapi (não é erro da chave). Peça ao suporte da OddsPapi para liberar o IP/User-Agent do servidor.`
+        : `${res.status} ${trimmed.slice(0, 180)}`;
       console.warn(`[oddspapi] fixtures ${ymd(cursor)}-${ymd(to)} -> ${lastFailure}`);
     } else {
       const rows = asFixtureListRows((await res.json().catch(() => null)) as FixtureListPayload);
