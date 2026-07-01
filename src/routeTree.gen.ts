@@ -31,6 +31,7 @@ import { Route as ApiAdminCadenceRouteImport } from './routes/api/admin/cadence'
 import { Route as ApiAdminAiPromptRouteImport } from './routes/api/admin/ai-prompt'
 import { Route as AuthenticatedJogosIdRouteImport } from './routes/_authenticated/jogos.$id'
 import { Route as AuthenticatedAdminSincronizacaoRouteImport } from './routes/_authenticated/admin.sincronizacao'
+import { Route as AuthenticatedAdminIaPromptRouteImport } from './routes/_authenticated/admin.ia-prompt'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -144,6 +145,12 @@ const AuthenticatedAdminSincronizacaoRoute =
     path: '/admin/sincronizacao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminIaPromptRoute =
+  AuthenticatedAdminIaPromptRouteImport.update({
+    id: '/admin/ia-prompt',
+    path: '/admin/ia-prompt',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/admin/ia-prompt': typeof AuthenticatedAdminIaPromptRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/ai-prompt': typeof ApiAdminAiPromptRoute
@@ -182,6 +190,7 @@ export interface FileRoutesByTo {
   '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/admin/ia-prompt': typeof AuthenticatedAdminIaPromptRoute
   '/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/ai-prompt': typeof ApiAdminAiPromptRoute
@@ -207,6 +216,7 @@ export interface FileRoutesById {
   '/api/assisted-reading': typeof ApiAssistedReadingRoute
   '/auth/cadastro': typeof AuthCadastroRoute
   '/auth/entrar': typeof AuthEntrarRoute
+  '/_authenticated/admin/ia-prompt': typeof AuthenticatedAdminIaPromptRoute
   '/_authenticated/admin/sincronizacao': typeof AuthenticatedAdminSincronizacaoRoute
   '/_authenticated/jogos/$id': typeof AuthenticatedJogosIdRoute
   '/api/admin/ai-prompt': typeof ApiAdminAiPromptRoute
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/admin/ia-prompt'
     | '/admin/sincronizacao'
     | '/jogos/$id'
     | '/api/admin/ai-prompt'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/admin/ia-prompt'
     | '/admin/sincronizacao'
     | '/jogos/$id'
     | '/api/admin/ai-prompt'
@@ -279,6 +291,7 @@ export interface FileRouteTypes {
     | '/api/assisted-reading'
     | '/auth/cadastro'
     | '/auth/entrar'
+    | '/_authenticated/admin/ia-prompt'
     | '/_authenticated/admin/sincronizacao'
     | '/_authenticated/jogos/$id'
     | '/api/admin/ai-prompt'
@@ -462,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSincronizacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/ia-prompt': {
+      id: '/_authenticated/admin/ia-prompt'
+      path: '/admin/ia-prompt'
+      fullPath: '/admin/ia-prompt'
+      preLoaderRoute: typeof AuthenticatedAdminIaPromptRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -470,6 +490,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDiarioRoute: typeof AuthenticatedDiarioRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPerfilAnaliticoRoute: typeof AuthenticatedPerfilAnaliticoRoute
+  AuthenticatedAdminIaPromptRoute: typeof AuthenticatedAdminIaPromptRoute
   AuthenticatedAdminSincronizacaoRoute: typeof AuthenticatedAdminSincronizacaoRoute
   AuthenticatedJogosIdRoute: typeof AuthenticatedJogosIdRoute
 }
@@ -479,6 +500,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDiarioRoute: AuthenticatedDiarioRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPerfilAnaliticoRoute: AuthenticatedPerfilAnaliticoRoute,
+  AuthenticatedAdminIaPromptRoute: AuthenticatedAdminIaPromptRoute,
   AuthenticatedAdminSincronizacaoRoute: AuthenticatedAdminSincronizacaoRoute,
   AuthenticatedJogosIdRoute: AuthenticatedJogosIdRoute,
 }
