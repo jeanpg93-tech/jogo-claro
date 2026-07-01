@@ -23,6 +23,8 @@ export type PerfilKey =
 export interface AssistedReadingPayload {
   status: AssistedStatus;
   resumo: string;
+  resumo_direto: string;
+  frase_chave: string;
   qualidade_dados: string;
   leitura_odds: string;
   comparacao_referencia: string;
