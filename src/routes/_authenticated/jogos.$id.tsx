@@ -18,6 +18,7 @@ import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
 import { profileLens, lensTone } from "@/lib/profile-lens";
 import { RISK_OPTIONS } from "@/lib/analytical-profile";
 import { GameAnalysisSection } from "@/components/game-analysis";
+import { AssistedReadingSection } from "@/components/assisted-reading";
 
 
 type Side = "home" | "draw" | "away";
@@ -156,6 +157,8 @@ function GameDetail({ game }: { game: Game }) {
         )}
 
         <GameAnalysisSection game={game} />
+
+        <AssistedReadingSection game={game} />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
 
