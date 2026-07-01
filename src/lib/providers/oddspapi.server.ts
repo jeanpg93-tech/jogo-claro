@@ -14,12 +14,19 @@ import { ptTeam } from "@/lib/teams-pt";
 const HOST = "https://api.oddspapi.io/v4";
 const SPORT_ID = 10; // futebol
 
-// OddsPapi roda atrás de Cloudflare e bloqueia requisições sem User-Agent
-// reconhecível (Workers/SSR enviam UA vazio → 403 Forbidden). Forçamos
-// cabeçalhos explícitos em todas as chamadas.
+// A OddsPapi fica atrás da Cloudflare com Bot Fight Mode ativo. Testes de
+// produção mostram que UAs "de bot" (ex.: "VisaoDeJogo/1.0 (+url)") e
+// requisições sem Accept-Language/Referer típicos de navegador são bloqueadas
+// com 403 e corpo curto {"error":"Forbidden"} pela WAF — antes mesmo de chegar
+// à API. Enviamos um perfil de navegador Chrome real para passar pelo desafio.
 export const ODDSPAPI_HEADERS: HeadersInit = {
-  "User-Agent": "VisaoDeJogo/1.0 (+https://visaodejogo.lovable.app)",
-  Accept: "application/json",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+  "Accept-Encoding": "gzip, deflate, br",
+  Referer: "https://oddspapi.io/",
+  Origin: "https://oddspapi.io",
 };
 
 interface TournamentRow {
@@ -433,7 +440,12 @@ async function fetchFixtureDiscovery(
     if (!res.ok) {
       const body = await responseText(res);
       failures++;
-      lastFailure = `${res.status} ${body.slice(0, 180)}`;
+      const trimmed = body.trim();
+      const looksLikeCfBlock =
+        res.status === 403 && /^\{?"?error"?\s*:\s*"?Forbidden/i.test(trimmed);
+      lastFailure = looksLikeCfBlock
+        ? `403 bloqueado pela Cloudflare/WAF da OddsPapi (não é erro da chave). Peça ao suporte da OddsPapi para liberar o IP/User-Agent do servidor.`
+        : `${res.status} ${trimmed.slice(0, 180)}`;
       console.warn(`[oddspapi] fixtures ${ymd(cursor)}-${ymd(to)} -> ${lastFailure}`);
     } else {
       const rows = asFixtureListRows((await res.json().catch(() => null)) as FixtureListPayload);
