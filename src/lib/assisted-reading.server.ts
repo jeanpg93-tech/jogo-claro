@@ -122,6 +122,20 @@ export async function verifyUserFromToken(token: string): Promise<string | null>
   return data.user.id;
 }
 
+export async function verifyAdminFromToken(token: string): Promise<boolean> {
+  const admin = getAdmin();
+  const { data: userRes, error: uerr } = await admin.auth.getUser(token);
+  if (uerr || !userRes.user) return false;
+  const { data } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userRes.user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+
 export interface CachedReading {
   id: string;
   gameId: string;
