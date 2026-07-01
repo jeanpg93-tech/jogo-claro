@@ -132,9 +132,64 @@ async function getNextKickoffMs(admin: Admin, nowIso: string): Promise<number | 
 }
 
 export async function runSync(opts: { force?: boolean } = {}): Promise<MultiSyncResult> {
-
   const admin = getAdmin();
+
+  // Cadência adaptativa: decide se realmente executa esta janela.
+  // O disparo externo (cron-job.org) continua batendo a cada 15 min,
+  // mas só chamamos a API dos provedores quando a regra permite.
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const nextKickoffMs = await getNextKickoffMs(admin, nowIso);
+  const decision = computeCadence(nextKickoffMs, nowMs);
+  const lastRun = await getJsonSetting<{ at: string }>(admin, "last_sync_at");
+  const lastMs = lastRun?.at ? new Date(lastRun.at).getTime() : 0;
+
+  if (!opts.force) {
+    if (decision.skip) {
+      await admin.from("sync_runs").insert({
+        started_at: nowIso,
+        finished_at: nowIso,
+        provider: "scheduler",
+        games_inserted: 0,
+        games_updated: 0,
+        odds_inserted: 0,
+        error: `SKIP: ${decision.reason}`,
+      });
+      return {
+        ok: true,
+        results: [],
+        gamesInserted: 0,
+        gamesUpdated: 0,
+        skipped: true,
+        skipReason: decision.reason,
+      };
+    }
+    const minSinceLast = (nowMs - lastMs) / 60000;
+    if (lastMs > 0 && minSinceLast + 0.5 < decision.intervalMin) {
+      const nextEligibleMs = lastMs + decision.intervalMin * 60000;
+      await admin.from("sync_runs").insert({
+        started_at: nowIso,
+        finished_at: nowIso,
+        provider: "scheduler",
+        games_inserted: 0,
+        games_updated: 0,
+        odds_inserted: 0,
+        error: `SKIP: intervalo ${decision.intervalMin}min (${decision.reason}) — último sync há ${Math.round(minSinceLast)}min.`,
+      });
+      return {
+        ok: true,
+        results: [],
+        gamesInserted: 0,
+        gamesUpdated: 0,
+        skipped: true,
+        skipReason: `Aguardando cadência de ${decision.intervalMin}min (${decision.reason}).`,
+        nextEligibleAt: new Date(nextEligibleMs).toISOString(),
+      };
+    }
+  }
+
   const enabled = await getProvidersEnabled(admin);
+
 
   const tasks: Array<{ name: ProviderName; provider: OddsProvider; activeLabels: string[] }> = [];
 
