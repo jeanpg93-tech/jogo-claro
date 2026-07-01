@@ -418,6 +418,12 @@ Responda ESTRITAMENTE em JSON válido:
   "status": "sem_cobertura"|"aguardar_dados"|"sem_oportunidade"|"oportunidade_analitica",
   "frase_chave": string (1 frase de no máximo 14 palavras, o "título" da análise em linguagem de torcedor),
   "resumo_direto": string (1 frase de no máximo 25 palavras, versão bem simples para quem não quer ler muito),
+  "por_que_favorito": string (2 a 3 frases curtas explicando, com base APENAS nos números, por que o lado com menor odd é o favorito — cite consenso das casas, referência e dispersão em linguagem simples; se não houver favorito claro, diga isso),
+  "odd_referencia_justa": {
+    "lado": "mandante"|"empate"|"visitante"|null (lado que a análise considera com melhor relação risco x preço; null se não houver),
+    "valor": number|null (odd que a IA considera "justa" com base na referência de mercado — NUNCA apresente como sugestão de aposta, é apenas um número de referência analítico; null se não houver dados),
+    "comentario": string (1 frase curta explicando de onde vem essa referência e lembrando que NÃO é recomendação de aposta)
+  },
   "resumo": string (2 a 3 frases, versão completa e um pouco mais técnica, máx 60 palavras),
   "qualidade_dados": string (1 a 2 frases sobre cobertura, referência e frescor, em linguagem simples),
   "leitura_odds": string (1 a 2 frases sobre as odds e diferenças entre casas — sempre diga mandante/empate/visitante),
