@@ -118,6 +118,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
         const json = (await resp.json().catch(() => ({}))) as {
           provider?: { provider: string; configured: boolean; reason?: string };
           reading?: CachedReading | null;
+          health?: HealthInfo;
         };
         if (cancel) return;
         if (json.provider) {
@@ -126,6 +127,7 @@ export function AssistedReadingSection({ game }: { game: Game }) {
             setProviderMsg(json.provider.reason ?? "Provedor de IA não configurado.");
           }
         }
+        if (json.health) setHealth(json.health);
         if (json.reading) {
           setReading(json.reading);
           setUiStatus("ready");
