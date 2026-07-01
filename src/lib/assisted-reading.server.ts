@@ -268,6 +268,121 @@ export async function saveReading(row: {
   };
 }
 
+// ----- Prompts versionados (admin) -----
+
+export interface PromptRow {
+  id: string;
+  name: string;
+  version: number;
+  content: string;
+  notes: string | null;
+  active: boolean;
+  created_at: string;
+  created_by: string | null;
+}
+
+export async function listPromptsAdmin(name = "system_main"): Promise<PromptRow[]> {
+  const admin = getAdmin();
+  const { data, error } = await admin
+    .from("ai_prompts")
+    .select("id, name, version, content, notes, active, created_at, created_by")
+    .eq("name", name)
+    .order("version", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PromptRow[];
+}
+
+export async function createPromptAdmin(input: {
+  name?: string;
+  content: string;
+  notes?: string | null;
+  createdBy: string;
+  activate?: boolean;
+}): Promise<PromptRow> {
+  const admin = getAdmin();
+  const name = input.name ?? "system_main";
+  const { data: last } = await admin
+    .from("ai_prompts")
+    .select("version")
+    .eq("name", name)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextVersion = (last?.version ?? 0) + 1;
+  const { data, error } = await admin
+    .from("ai_prompts")
+    .insert({
+      name,
+      version: nextVersion,
+      content: input.content,
+      notes: input.notes ?? null,
+      created_by: input.createdBy,
+      active: false,
+    })
+    .select("id, name, version, content, notes, active, created_at, created_by")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Falha ao salvar prompt");
+  if (input.activate) {
+    await activatePromptAdmin(data.id);
+    return { ...(data as PromptRow), active: true };
+  }
+  return data as PromptRow;
+}
+
+export async function activatePromptAdmin(id: string): Promise<void> {
+  const admin = getAdmin();
+  const { data: row, error: e1 } = await admin
+    .from("ai_prompts")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+  if (e1 || !row) throw new Error(e1?.message ?? "Prompt não encontrado");
+  const { error: e2 } = await admin
+    .from("ai_prompts")
+    .update({ active: false })
+    .eq("name", row.name);
+  if (e2) throw new Error(e2.message);
+  const { error: e3 } = await admin
+    .from("ai_prompts")
+    .update({ active: true })
+    .eq("id", id);
+  if (e3) throw new Error(e3.message);
+}
+
+async function getActiveSystemPrompt(): Promise<string> {
+  try {
+    const admin = getAdmin();
+    const { data } = await admin
+      .from("ai_prompts")
+      .select("content")
+      .eq("name", "system_main")
+      .eq("active", true)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const txt = (data?.content ?? "").trim();
+    if (txt.length > 40) return txt;
+  } catch {
+    // fallback silencioso para prompt hardcoded
+  }
+  return SYSTEM_PROMPT;
+}
+
+export async function verifyAdminFromToken(token: string): Promise<boolean> {
+  const admin = getAdmin();
+  const { data: userRes, error: uerr } = await admin.auth.getUser(token);
+  if (uerr || !userRes.user) return false;
+  const { data } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userRes.user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT;
+
 // ----- Prompt e chamada ao provedor -----
 
 const SYSTEM_PROMPT = `Você é um analista esportivo brasileiro, especialista em futebol e leitura de mercado, do produto "Visão de Jogo". Sua função é traduzir números frios (odds, referência, dispersão) em uma leitura clara e responsável para o usuário adulto. Você NÃO é sistema de sinais, tipster nem robô de apostas.
