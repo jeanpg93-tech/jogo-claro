@@ -577,6 +577,7 @@ async function callOpenAICompatible(opts: {
 async function callAnthropic(opts: {
   model: string;
   input: AssistedReadingInput;
+  systemPrompt?: string;
 }): Promise<ProviderCall> {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -588,7 +589,7 @@ async function callAnthropic(opts: {
     body: JSON.stringify({
       model: opts.model,
       max_tokens: 2200,
-      system: SYSTEM_PROMPT,
+      system: opts.systemPrompt ?? SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt(opts.input) }],
     }),
   });
