@@ -1,82 +1,65 @@
-## Minha recomendação de provedor
+## Fase 1 — Perfil Analítico do Usuário
 
-**The Odds API** (https://the-odds-api.com) é a melhor escolha para o MVP, pelos seguintes motivos objetivos:
+Objetivo: capturar o perfil analítico (experiência, risco, objetivo, mercados, competições, tolerância, alertas) sem introduzir IA. As Fases 2–6 do documento ficam para depois; cada uma exige aprovação separada.
 
-| Critério | The Odds API | API-Football |
-|---|---|---|
-| Foco em odds pré-jogo 1X2 | Sim, é o produto principal | Secundário, exige plano pago |
-| Plano gratuito | 500 requisições/mês | 100 req/dia, mas odds são pagas |
-| Múltiplas casas por jogo | Sim, nativo (vira nosso "books") | Limitado |
-| Esforço de integração | Baixo (1 endpoint, JSON simples) | Médio |
-| Cobre Brasileirão + Europa | Sim (`soccer_brazil_campeonato`, etc.) | Sim |
+### O que muda
 
-**API-Football** entra melhor na Fase 5, quando quisermos escalações, lesões e estatísticas avançadas.
+**Banco (Supabase) — nova migration SQL a ser executada pelo usuário**
 
-Vou montar a Fase 4 com um **adapter plugável**: a integração começa preparada para The Odds API, mas a interface `OddsProvider` permite trocar de provedor sem reescrever o painel.
+Estender `public.user_preferences` com colunas nullable (não quebra o que já existe):
 
----
+- `experience_level` text — `iniciante` | `intermediario` | `avancado`
+- `risk_profile` text — `conservador` | `equilibrado` | `agressivo` | `oportunista`
+- `goals` text[] — subset de `aprender`, `registrar_decisoes`, `comparar_odds`, `buscar_oportunidades`, `melhorar_disciplina`
+- `markets` text[] — começa com `["1x2"]`
+- `risk_tolerance` int — 1 a 10 (slider)
+- `discipline_alerts` boolean default true
+- `disclaimer_acknowledged_at` timestamptz — carimbo do aceite explícito
+- `analytical_profile_completed_at` timestamptz — quando o usuário concluiu o onboarding do perfil
+- CHECK constraints para os enums; sem novos GRANTs (a tabela já é acessível pelo usuário).
 
-## Fase 4 — Integração externa de dados reais
+`favorite_competitions`, `personal_edge_threshold` e `notify_oportunidade` continuam intactos.
 
-### 1. Camada de provedor (adapter)
-- `src/lib/providers/types.ts` — interface `OddsProvider` com `fetchUpcomingGames()` retornando o shape canônico já usado em `DemoGame`.
-- `src/lib/providers/the-odds-api.server.ts` — implementação real, lê `THE_ODDS_API_KEY` de `process.env`.
-- `src/lib/providers/index.server.ts` — seletor por `process.env.ODDS_PROVIDER` (default `the-odds-api`), fácil de trocar depois.
+**Frontend**
 
-### 2. Modelo no Supabase
-SQL que você roda no painel:
-- `games` (id, external_id, provider, competition, home, away, kickoff, updated_at).
-- `game_odds` (game_id, side, book, odd).
-- `game_reference` (game_id, home, draw, away) — média/mediana das casas, calculada na ingestão.
-- `sync_runs` (id, started_at, finished_at, provider, games_inserted, games_updated, error) — para auditoria.
-- RLS: leitura pública (`anon` + `authenticated`) somente nas tabelas de jogos/odds; `sync_runs` só admin.
+1. `src/lib/analytical-profile.ts` — constantes (labels PT-BR), tipos TS, defaults, textos padronizados na linguagem do produto (análise, disciplina, risco, decisão do usuário, oportunidade analítica). Nada de "aposta certa", "sinal", "lucro garantido", "green".
 
-### 3. Ingestão (server functions + rota pública)
-- `src/lib/sync.functions.ts` → `syncGames` (`createServerFn`, middleware `requireSupabaseAuth` + check `has_role admin`) para o botão manual no painel Admin.
-- `src/routes/api/public/sync.ts` → endpoint para cron, protegido por header `x-sync-secret` (segredo `SYNC_SECRET` gerado via `generate_secret`).
-- Ambos chamam a mesma função interna `runSync(provider)` que: busca dados → upsert nas tabelas → calcula referência → grava `sync_runs`.
+2. `src/hooks/use-analytical-profile.tsx` — hook `useAnalyticalProfile()` que lê/atualiza a linha de `user_preferences` do usuário logado, expõe `profile`, `loading`, `save()`, `isComplete`.
 
-### 4. Leitura no app
-- `src/lib/games.functions.ts` → `listGames` e `getGame` lendo de `games`/`game_odds`/`game_reference` via cliente publishable (server-side, com policy `TO anon SELECT`).
-- `src/routes/_authenticated/dashboard.tsx` e `jogos.$id.tsx`: trocar `DEMO_GAMES` por `useSuspenseQuery` chamando essas server fns. A regra de classificação (`classifyGame`) **não muda** — segue 100% objetiva.
-- Substituir demo por real: quando há ao menos 1 jogo real na janela, demos somem. Banner "Dados demonstrativos" some quando todos os cards forem reais.
-- Cada card mostra `updated_at` real (data/hora da última sincronização).
+3. `src/routes/_authenticated/perfil.tsx` — nova seção **"Perfil analítico"** acima de "Preferências", com:
+   - Nível de experiência (radio group)
+   - Perfil de risco (radio group com descrição curta de cada)
+   - Objetivos na plataforma (checkboxes múltiplos)
+   - Mercados de interesse (checkbox; no MVP só `Resultado final (1X2)` marcado e desabilitado com nota "mais mercados em breve")
+   - Competições de interesse (reaproveita a lista já existente de `favorite_competitions`, consolidada num único bloco)
+   - Tolerância pessoal a risco (slider 1–10 com rótulos "muito conservador" / "muito arrojado")
+   - Switch "Receber alertas de cautela e disciplina"
+   - Confirmação obrigatória: "Entendo que a plataforma não garante lucro, não executa apostas e não substitui minha decisão." (checkbox exigido para salvar; carimba `disclaimer_acknowledged_at`)
+   - Botão único "Salvar perfil analítico" com o `PageLoader` existente.
 
-### 5. Painel Admin de sincronização
-- `src/routes/_authenticated/admin.sincronizacao.tsx` (visível só com `effectiveIsAdmin`):
-  - Botão **Sincronizar agora**.
-  - Tabela com últimas 20 execuções (`sync_runs`): início, duração, provedor, inseridos/atualizados, erro.
-  - Status da chave: "configurada" / "ausente" (sem mostrar o valor).
+4. `src/routes/_authenticated/perfil-analitico.tsx` (nova rota) — versão **onboarding** do mesmo formulário: layout de página cheia, título "Complete seu perfil analítico", texto explicando por que pedimos, e ao salvar redireciona pra `/dashboard`. Reutiliza o mesmo componente de formulário do perfil (extraído para `src/components/analytical-profile-form.tsx`).
 
-### 6. Cron
-- Stable URL `https://project--{id}.lovable.app/api/public/sync` com header `x-sync-secret`.
-- Forneço comando `pg_cron` pronto para você colar no Supabase (intervalo padrão 60 min).
+5. `src/routes/_authenticated/route.tsx` — após login, se `analytical_profile_completed_at` for null, redirecionar para `/perfil-analitico` (exceto quando o usuário já está nessa rota ou em `/jogo-responsavel`). Skip silencioso se a query falhar, para o app continuar funcionando mesmo sem perfil (critério de aceite da Fase 2, mas já protege agora).
 
-### 7. Comunicação responsável (mantida)
-- Sem links para casas. Nome das casas exibido apenas como "Fonte A", "Fonte B"... ou o nome bruto sem URL — a definir com você quando aparecer a primeira chave.
-- Banner global "Dados demonstrativos" só aparece se a tabela `games` estiver vazia.
-- Toda card mostra timestamp real de atualização; se `> MAX_DATA_AGE_HOURS`, classifica como **Aguardar dados** (regra já existe).
+6. `src/routes/auth.cadastro.tsx` — após `signUp` bem-sucedido, redirecionar para `/auth/entrar` como hoje; o onboarding do perfil analítico acontece no primeiro login (mais simples e evita bloqueio caso a confirmação de e-mail esteja ativa).
 
-### 8. Secrets necessários (peço quando você decidir o provedor)
-- `THE_ODDS_API_KEY` — chave do provedor (via `add_secret`).
-- `SYNC_SECRET` — gerado automaticamente (`generate_secret`) para autenticar o cron.
+### O que NÃO entra nesta fase
 
-### Detalhes técnicos
-- Server fns para ingestão e leitura ficam em `src/lib/*.functions.ts`; provedor externo em `*.server.ts`.
-- Cliente publishable server-side para leitura pública (cumpre `tanstack-supabase-integration`).
-- `supabaseAdmin` carregado dentro do handler (nunca em escopo de módulo) para upserts.
-- TanStack Query: `queryOptions` + `ensureQueryData` no loader + `useSuspenseQuery` no componente.
+- Nenhuma personalização visual do dashboard/detalhe do jogo pelo perfil (isso é Fase 2 do documento).
+- Nenhuma chamada de IA, nenhum bloco "Análise do jogo" novo, nenhum chat (Fases 3–6).
+- Nenhuma alteração em `sync-core`, providers de odds, cadência ou dados.
 
-### Critérios de aceite
-- Botão Admin executa sync e popula `games`/`game_odds`/`game_reference`.
-- Cron consegue chamar `/api/public/sync` com o header secreto e gravar uma linha em `sync_runs`.
-- Painel deixa de mostrar dados demo assim que houver dados reais.
-- `classifyGame` continua decidindo status apenas por regras objetivas; nenhum uso de IA.
-- Erros do provedor não quebram o painel; caem em `Aguardar dados` / mantêm último snapshot bom.
+### Entregáveis
 
-### Fora de escopo (Fase 5)
-- Escalações, lesões, estatísticas avançadas, novos mercados, IA externa opt-in, ranking, push notifications.
+- SQL de migration (a ser aplicado pelo usuário no Supabase externo).
+- Arquivos novos: `src/lib/analytical-profile.ts`, `src/hooks/use-analytical-profile.tsx`, `src/components/analytical-profile-form.tsx`, `src/routes/_authenticated/perfil-analitico.tsx`.
+- Arquivos editados: `src/routes/_authenticated/perfil.tsx`, `src/routes/_authenticated/route.tsx`.
 
----
+### Critérios de aceite (do documento)
 
-Aprovando este plano, eu começo pela camada do banco + adapter + leitura pública (sem precisar da chave ainda), e só peço a chave do The Odds API via formulário seguro quando chegarmos no passo de ingestão real.
+- Usuário novo cria conta e consegue completar o perfil analítico no primeiro login.
+- Usuário edita o perfil depois em `/perfil`.
+- Preferências existentes (competições favoritas, limiar, notify) continuam funcionando.
+- Nenhum texto promete lucro, acerto, sinal vencedor ou aposta certa.
+
+Ao finalizar, paro e aguardo aprovação antes de seguir para a Fase 2 do documento.
