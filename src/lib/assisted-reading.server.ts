@@ -337,7 +337,8 @@ export async function callProvider(input: AssistedReadingInput): Promise<Provide
       headers: { Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}` },
       model: st.model!,
       input,
-      requestJson: true,
+      // Gateway (claude via /v1/chat/completions) não aceita response_format json_object.
+      requestJson: false,
     });
   }
   if (st.provider === "lovable")

@@ -101,10 +101,12 @@ export const Route = createFileRoute("/api/assisted-reading")({
         try {
           out = await callProvider(input);
         } catch (err) {
+          const msg = err instanceof Error ? err.message : "falha no provedor";
+          console.error("[assisted-reading] provider failed:", msg);
           return Response.json(
             {
               status: "error",
-              message: err instanceof Error ? err.message : "falha no provedor",
+              message: msg,
             },
             { status: 502 },
           );
