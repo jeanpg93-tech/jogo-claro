@@ -17,6 +17,7 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const {
           verifyUserFromToken,
           getProviderStatus,
+          getProviderHealth,
           readLatestReading,
         } = await import("@/lib/assisted-reading.server");
         const userId = await verifyUserFromToken(token);
@@ -24,9 +25,10 @@ export const Route = createFileRoute("/api/assisted-reading")({
         const url = new URL(request.url);
         const gameId = url.searchParams.get("gameId");
         const provider = getProviderStatus();
-        if (!gameId) return Response.json({ provider, reading: null });
+        const health = getProviderHealth();
+        if (!gameId) return Response.json({ provider, health, reading: null });
         const reading = await readLatestReading(gameId);
-        return Response.json({ provider, reading });
+        return Response.json({ provider, health, reading });
       },
       POST: async ({ request }) => {
         const auth = request.headers.get("authorization") ?? "";
