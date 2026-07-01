@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import type { Game } from "@/lib/demo-games";
 import {
-  buildAssistedReadingInput,
   type AssistedReadingPayload,
   type AssistedReadingUiStatus,
   type AssistedStatus,
@@ -33,6 +32,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeGame } from "@/lib/game-analysis";
 import { useAnalyticalProfile } from "@/hooks/use-analytical-profile";
+import { useRole } from "@/hooks/use-role";
 
 interface CachedReading {
   id: string;
